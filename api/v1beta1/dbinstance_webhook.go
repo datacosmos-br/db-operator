@@ -28,18 +28,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/strings/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-var mgr manager.Manager
-
 // log is for logging in this package.
 var dbinstancelog = logf.Log.WithName("dbinstance-resource")
 
+var dbInstanceMgr ctrl.Manager
+
 func (r *DbInstance) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	dbInstanceMgr = mgr
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -67,8 +68,21 @@ func TestAllowedPrivileges(privileges []string) error {
 	return nil
 }
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// Wrapper methods to implement the admission.Validator interface
 func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
+	return r.ValidateCreateWithContext(context.Background(), dbInstanceMgr.GetClient())
+}
+
+func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+	return r.ValidateUpdateWithContext(context.Background(), old, dbInstanceMgr.GetClient())
+}
+
+func (r *DbInstance) ValidateDelete() (admission.Warnings, error) {
+	return r.ValidateDeleteWithContext(context.Background(), dbInstanceMgr.GetClient())
+}
+
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+func (r *DbInstance) ValidateCreateWithContext(ctx context.Context, c client.Client) (admission.Warnings, error) {
 	dbinstancelog.Info("validate create", "name", r.Name)
 	if err := TestAllowedPrivileges(r.Spec.AllowedPriveleges); err != nil {
 		return nil, err
@@ -84,14 +98,14 @@ func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
 	if err := ValidateEngine(r.Spec.Engine); err != nil {
 		return nil, err
 	}
-	if err := r.ValidateExistingDatabase(context.Background(), mgr.GetClient()); err != nil {
+	if err := r.ValidateExistingDatabase(ctx, c); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *DbInstance) ValidateUpdateWithContext(ctx context.Context, old runtime.Object, c client.Client) (admission.Warnings, error) {
 	dbinstancelog.Info("validate update", "name", r.Name)
 	if err := TestAllowedPrivileges(r.Spec.AllowedPriveleges); err != nil {
 		return nil, err
@@ -110,7 +124,7 @@ func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, err
 		return nil, err
 	}
 
-	if err := r.ValidateExistingDatabase(context.Background(), mgr.GetClient()); err != nil {
+	if err := r.ValidateExistingDatabase(ctx, c); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -155,7 +169,7 @@ func ValidateEngine(engine string) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateDelete() (admission.Warnings, error) {
+func (r *DbInstance) ValidateDeleteWithContext(ctx context.Context, c client.Client) (admission.Warnings, error) {
 	dbinstancelog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
