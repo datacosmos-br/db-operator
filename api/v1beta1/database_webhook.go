@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/strings/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -34,7 +35,10 @@ import (
 // log is for logging in this package.
 var databaselog = logf.Log.WithName("database-resource")
 
+var databaseMgr ctrl.Manager
+
 func (r *Database) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	databaseMgr = mgr
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -71,6 +75,19 @@ var _ webhook.Validator = &Database{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Database) ValidateCreate() (admission.Warnings, error) {
+	return r.ValidateCreateWithContext(context.Background(), databaseMgr.GetClient())
+}
+
+func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+	return r.ValidateUpdateWithContext(context.Background(), old, databaseMgr.GetClient())
+}
+
+func (r *Database) ValidateDelete() (admission.Warnings, error) {
+	return r.ValidateDeleteWithContext(context.Background(), databaseMgr.GetClient())
+}
+
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+func (r *Database) ValidateCreateWithContext(ctx context.Context, c client.Client) (admission.Warnings, error) {
 	databaselog.Info("validate create", "name", r.Name)
 
 	if r.Spec.SecretsTemplates != nil && r.Spec.Credentials.Templates != nil {
@@ -93,14 +110,14 @@ func (r *Database) ValidateCreate() (admission.Warnings, error) {
 	if err := r.ValidateNamespace(); err != nil {
 		return nil, err
 	}
-	if err := r.ValidateExistingDatabase(context.Background(), mgr.GetClient()); err != nil {
+	if err := r.ValidateExistingDatabase(ctx, c); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *Database) ValidateUpdateWithContext(ctx context.Context, old runtime.Object, c client.Client) (admission.Warnings, error) {
 	databaselog.Info("validate update", "name", r.Name)
 
 	if r.Spec.SecretsTemplates != nil && r.Spec.Credentials.Templates != nil {
@@ -123,7 +140,11 @@ func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 
 	// Ensure fields are immutable
 	immutableErr := "cannot change %s, the field is immutable"
-	oldDatabase, _ := old.(*Database)
+	oldDatabase, ok := old.(*Database)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast old object to Database")
+	}
+
 	if r.Spec.Instance != oldDatabase.Spec.Instance {
 		return nil, fmt.Errorf(immutableErr, "spec.instance")
 	}
@@ -135,7 +156,7 @@ func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 	if err := r.ValidateNamespace(); err != nil {
 		return nil, err
 	}
-	if err := r.ValidateExistingDatabase(context.Background(), mgr.GetClient()); err != nil {
+	if err := r.ValidateExistingDatabase(ctx, c); err != nil {
 		return nil, err
 	}
 
@@ -160,7 +181,7 @@ func ValidateSecretTemplates(templates map[string]string) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Database) ValidateDelete() (admission.Warnings, error) {
+func (r *Database) ValidateDeleteWithContext(ctx context.Context, c client.Client) (admission.Warnings, error) {
 	databaselog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.

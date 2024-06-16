@@ -1,4 +1,4 @@
-FROM golang:1.22.4-alpine AS builder
+FROM golang:1.22-alpine3.19 AS builder
 
 ARG OPERATOR_VERSION
 
@@ -17,7 +17,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 go build -tags build -o /usr/local/bin/db-operator -ldflags="-X 'github.com/db-operator/db-operator/internal/helpers/common.OperatorVersion=${OPERATOR_VERSION}'" cmd/main.go
 
-FROM alpine:3.20
+FROM alpine:3.19
 LABEL org.opencontainers.image.authors="Nikolai Rodionov<allanger@zohomail.com>"
 
 ENV USER_UID=1001
