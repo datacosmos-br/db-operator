@@ -18,6 +18,7 @@
 package v1beta1
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -28,9 +29,12 @@ import (
 	"k8s.io/utils/strings/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
+
+var mgr manager.Manager
 
 // log is for logging in this package.
 var dbinstancelog = logf.Log.WithName("dbinstance-resource")
@@ -54,11 +58,10 @@ func (r *DbInstance) Default() {
 
 var _ webhook.Validator = &DbInstance{}
 
-func TestAllowedPrivileges(priveleges []string) error {
-	for _, privelege := range priveleges {
-		if strings.ToUpper(privelege) == consts.ALL_PRIVILEGES {
+func TestAllowedPrivileges(privileges []string) error {
+	for _, privilege := range privileges {
+		if strings.ToUpper(privilege) == consts.ALL_PRIVILEGES {
 			return errors.New("it's not allowed to grant ALL PRIVILEGES")
-
 		}
 	}
 	return nil
@@ -66,6 +69,7 @@ func TestAllowedPrivileges(priveleges []string) error {
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
+	dbinstancelog.Info("validate create", "name", r.Name)
 	if err := TestAllowedPrivileges(r.Spec.AllowedPriveleges); err != nil {
 		return nil, err
 	}
@@ -80,11 +84,15 @@ func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
 	if err := ValidateEngine(r.Spec.Engine); err != nil {
 		return nil, err
 	}
+	if err := r.ValidateExistingDatabase(context.Background(), mgr.GetClient()); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+	dbinstancelog.Info("validate update", "name", r.Name)
 	if err := TestAllowedPrivileges(r.Spec.AllowedPriveleges); err != nil {
 		return nil, err
 	}
@@ -98,6 +106,13 @@ func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, err
 		return nil, fmt.Errorf(immutableErr, "engine")
 	}
 
+	if err := ValidateConfigVsConfigFrom(r.Spec.Generic); err != nil {
+		return nil, err
+	}
+
+	if err := r.ValidateExistingDatabase(context.Background(), mgr.GetClient()); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -133,8 +148,8 @@ func ValidateConfigFrom(dbin *GenericInstance) error {
 }
 
 func ValidateEngine(engine string) error {
-	if !(slices.Contains([]string{"postgres", "mysql"}, engine)) {
-		return fmt.Errorf("unsupported engine: %s. please use either postgres or mysql", engine)
+	if !slices.Contains([]string{"postgres", "mysql", "mongodb", "clickhouse", "oracle", "sqlserver"}, engine) {
+		return fmt.Errorf("unsupported engine: %s. please use one of: postgres, mysql, mongodb, clickhouse, oracle, sqlserver", engine)
 	}
 	return nil
 }

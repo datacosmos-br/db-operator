@@ -16,22 +16,38 @@
 
 package consts
 
-// This package exists to avoid cycle import. Put here consts that are used accrossed packages
+// This package exists to avoid cycle import. Put here consts that are used across packages
 
 // Database Related Consts
 const (
-	POSTGRES_DB       = "POSTGRES_DB"
-	POSTGRES_USER     = "POSTGRES_USER"
-	POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
-	MYSQL_DB          = "DB"
-	MYSQL_USER        = "USER"
-	MYSQL_PASSWORD    = "PASSWORD"
+	POSTGRES_DB         = "POSTGRES_DB"
+	POSTGRES_USER       = "POSTGRES_USER"
+	POSTGRES_PASSWORD   = "POSTGRES_PASSWORD"
+	MYSQL_DB            = "DB"
+	MYSQL_USER          = "USER"
+	MYSQL_PASSWORD      = "PASSWORD"
+	MONGODB_DB          = "MONGODB_DB"
+	MONGODB_USER        = "MONGODB_USER"
+	MONGODB_PASSWORD    = "MONGODB_PASSWORD"
+	CLICKHOUSE_DB       = "CLICKHOUSE_DB"
+	CLICKHOUSE_USER     = "CLICKHOUSE_USER"
+	CLICKHOUSE_PASSWORD = "CLICKHOUSE_PASSWORD"
+	ORACLE_DB           = "ORACLE_DB"
+	ORACLE_USER         = "ORACLE_USER"
+	ORACLE_PASSWORD     = "ORACLE_PASSWORD"
+	SQLSERVER_DB        = "SQLSERVER_DB"
+	SQLSERVER_USER      = "SQLSERVER_USER"
+	SQLSERVER_PASSWORD  = "SQLSERVER_PASSWORD"
 )
 
-// Database enginges
+// Database engines
 const (
-	ENGINE_POSTGRES = "postgres"
-	ENGINE_MYSQL    = "mysql"
+	ENGINE_POSTGRES   = "postgres"
+	ENGINE_MYSQL      = "mysql"
+	ENGINE_MONGODB    = "mongodb"
+	ENGINE_CLICKHOUSE = "clickhouse"
+	ENGINE_ORACLE     = "oracle"
+	ENGINE_SQLSERVER  = "sqlserver"
 )
 
 // SSL modes
@@ -57,6 +73,6 @@ const (
 	USED_BY_NAME_LABEL_KEY = "kinda.rocks/used-by-name"
 )
 
-// Priveleges
+// Privileges
 
 const ALL_PRIVILEGES = "ALL PRIVILEGES"

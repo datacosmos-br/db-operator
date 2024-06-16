@@ -1,4 +1,4 @@
-FROM registry.hub.docker.com/library/golang:1.22.2-alpine3.18 as builder
+FROM golang:1.22.2-alpine3.18 as builder
 
 ARG OPERATOR_VERSION
 
@@ -18,7 +18,7 @@ COPY . .
 ARG GOARCH
 RUN GOOS=linux GOARCH=$GOARCH CGO_ENABLED=0 go build -tags build -o /usr/local/bin/db-operator -ldflags="-X 'github.com/db-operator/db-operator/internal/helpers/common.OperatorVersion=${OPERATOR_VERSION}'" cmd/main.go
 
-FROM registry.hub.docker.com/library/alpine:3.18
+FROM alpine:3.18
 LABEL org.opencontainers.image.authors="Nikolai Rodionov<allanger@zohomail.com>"
 
 ENV USER_UID=1001
