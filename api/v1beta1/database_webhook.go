@@ -18,6 +18,7 @@
 package v1beta1
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -89,6 +90,12 @@ func (r *Database) ValidateCreate() (admission.Warnings, error) {
 		}
 	}
 
+	if err := r.ValidateNamespace(); err != nil {
+		return nil, err
+	}
+	if err := r.ValidateExistingDatabase(context.Background(), mgr.GetClient()); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -123,6 +130,13 @@ func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 
 	if r.Spec.Postgres.Template != oldDatabase.Spec.Postgres.Template {
 		return nil, fmt.Errorf(immutableErr, "spec.postgres.template")
+	}
+
+	if err := r.ValidateNamespace(); err != nil {
+		return nil, err
+	}
+	if err := r.ValidateExistingDatabase(context.Background(), mgr.GetClient()); err != nil {
+		return nil, err
 	}
 
 	return nil, nil

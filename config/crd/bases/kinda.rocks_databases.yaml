@@ -368,6 +368,10 @@ spec:
           spec:
             description: DatabaseSpec defines the desired state of Database
             properties:
+              allowedNamespaces:
+                items:
+                  type: string
+                type: array
               backup:
                 description: DatabaseBackup defines the desired state of backup and
                   schedule
@@ -382,6 +386,17 @@ spec:
                 type: object
               cleanup:
                 type: boolean
+              clickhouse:
+                description: Clickhouse struct should be used to provide resource
+                  that only applicable to Clickhouse
+                properties:
+                  clusterName:
+                    type: string
+                  replicatedTables:
+                    items:
+                      type: string
+                    type: array
+                type: object
               credentials:
                 description: |-
                   Credentials should be used to setup everything relates to k8s secrets and configmaps
@@ -407,10 +422,36 @@ spec:
                       type: object
                     type: array
                 type: object
+              database:
+                type: string
               deletionProtected:
                 type: boolean
               instance:
                 type: string
+              mongodb:
+                description: MongoDB struct should be used to provide resource that
+                  only applicable to MongoDB
+                properties:
+                  collections:
+                    items:
+                      type: string
+                    type: array
+                  sharding:
+                    type: boolean
+                type: object
+              oracle:
+                description: Oracle struct should be used to provide resource that
+                  only applicable to Oracle
+                properties:
+                  profiles:
+                    items:
+                      type: string
+                    type: array
+                  tablespaces:
+                    items:
+                      type: string
+                    type: array
+                type: object
               postgres:
                 description: Postgres struct should be used to provide resource that
                   only applicable to postgres
@@ -439,6 +480,21 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              sqlserver:
+                description: SQLServer struct should be used to provide resource that
+                  only applicable to SQLServer
+                properties:
+                  roles:
+                    items:
+                      type: string
+                    type: array
+                  schemas:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              user:
+                type: string
             required:
             - backup
             - deletionProtected

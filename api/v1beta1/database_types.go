@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package v1beta1
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/db-operator/db-operator/pkg/consts"
@@ -33,8 +33,15 @@ type DatabaseSpec struct {
 	Backup            DatabaseBackup    `json:"backup"`
 	SecretsTemplates  map[string]string `json:"secretsTemplates,omitempty"`
 	Postgres          Postgres          `json:"postgres,omitempty"`
+	MongoDB           MongoDB           `json:"mongodb,omitempty"`
+	Clickhouse        Clickhouse        `json:"clickhouse,omitempty"`
+	Oracle            Oracle            `json:"oracle,omitempty"`
+	SQLServer         SQLServer         `json:"sqlserver,omitempty"`
 	Cleanup           bool              `json:"cleanup,omitempty"`
 	Credentials       Credentials       `json:"credentials,omitempty"`
+	DatabaseName      string            `json:"database,omitempty"`
+	UserName          string            `json:"user,omitempty"`
+	AllowedNamespaces []string          `json:"allowedNamespaces,omitempty"`
 }
 
 // Postgres struct should be used to provide resource that only applicable to postgres
@@ -46,6 +53,30 @@ type Postgres struct {
 	Schemas []string `json:"schemas,omitempty"`
 	// Let user create database from template
 	Template string `json:"template,omitempty"`
+}
+
+// MongoDB struct should be used to provide resource that only applicable to MongoDB
+type MongoDB struct {
+	Collections []string `json:"collections,omitempty"`
+	Sharding    bool     `json:"sharding,omitempty"`
+}
+
+// Clickhouse struct should be used to provide resource that only applicable to Clickhouse
+type Clickhouse struct {
+	ReplicatedTables []string `json:"replicatedTables,omitempty"`
+	ClusterName      string   `json:"clusterName,omitempty"`
+}
+
+// Oracle struct should be used to provide resource that only applicable to Oracle
+type Oracle struct {
+	Tablespaces []string `json:"tablespaces,omitempty"`
+	Profiles    []string `json:"profiles,omitempty"`
+}
+
+// SQLServer struct should be used to provide resource that only applicable to SQLServer
+type SQLServer struct {
+	Schemas []string `json:"schemas,omitempty"`
+	Roles   []string `json:"roles,omitempty"`
 }
 
 // DatabaseStatus defines the observed state of Database
@@ -106,13 +137,74 @@ func init() {
 	SchemeBuilder.Register(&Database{}, &DatabaseList{})
 }
 
-// GetProtocol returns the protocol that is required for connection (postgresql or mysql)
+// ValidateExistingDatabase checks if there's an existing database for the same instance in any namespace
+func (db *Database) ValidateExistingDatabase(ctx context.Context, c client.Client) error {
+	var dbList DatabaseList
+	if err := c.List(ctx, &dbList); err != nil {
+		return err
+	}
+
+	// Determine the database name to use for the current Database object
+	databaseName := db.Spec.DatabaseName
+	if databaseName == "" {
+		databaseName = fmt.Sprintf("%s-%s", db.Namespace, db.Name)
+	}
+
+	for _, existingDB := range dbList.Items {
+		// Determine the database name to use for the existing Database object
+		existingDatabaseName := existingDB.Spec.DatabaseName
+		if existingDatabaseName == "" {
+			existingDatabaseName = fmt.Sprintf("%s-%s", existingDB.Namespace, existingDB.Name)
+		}
+
+		if existingDB.Spec.Instance == db.Spec.Instance && existingDatabaseName == databaseName && existingDB.Name != db.Name {
+			return fmt.Errorf("a database for instance %s with name %s already exists in namespace %s", db.Spec.Instance, databaseName, existingDB.Namespace)
+		}
+	}
+
+	return nil
+}
+
+// ValidateNamespace checks if the database is in an allowed namespace
+func (db *Database) ValidateNamespace() error {
+	if db.Spec.AllowedNamespaces == nil {
+		db.Spec.AllowedNamespaces = []string{db.Namespace}
+	}
+
+	for _, ns := range db.Spec.AllowedNamespaces {
+		if ns == db.Namespace {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("namespace %s is not allowed", db.Namespace)
+}
+
+// ValidateDbUserNamespace checks if the namespace of the DbUser is allowed in the referenced Database
+func (db *Database) ValidateDbUserNamespace(userNamespace string) error {
+	for _, ns := range db.Spec.AllowedNamespaces {
+		if ns == userNamespace {
+			return nil
+		}
+	}
+	return fmt.Errorf("namespace %s is not allowed for the user", userNamespace)
+}
+
+// GetProtocol returns the protocol that is required for connection (postgresql, mysql, mongodb, clickhouse, oracle, sqlserver)
 func (db *Database) GetProtocol() (string, error) {
 	switch db.Status.Engine {
 	case consts.ENGINE_POSTGRES:
 		return "postgresql", nil
 	case consts.ENGINE_MYSQL:
 		return db.Status.Engine, nil
+	case consts.ENGINE_MONGODB:
+		return "mongodb", nil
+	case consts.ENGINE_CLICKHOUSE:
+		return "clickhouse", nil
+	case consts.ENGINE_ORACLE:
+		return "oracle", nil
+	case consts.ENGINE_SQLSERVER:
+		return "sqlserver", nil
 	default:
 		return "", fmt.Errorf("unknown engine %s", db.Status.Engine)
 	}
@@ -139,4 +231,5 @@ func (db *Database) InstanceAccessSecretName() string {
 	return "dbin-" + db.Spec.Instance + "-access-secret"
 }
 
-func (db *Database) Hub() {}
+func (db *Database) Hub() {
+}
