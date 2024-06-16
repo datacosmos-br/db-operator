@@ -232,4 +232,5 @@ func (db *Database) InstanceAccessSecretName() string {
 }
 
 func (db *Database) Hub() {
+	// Function to mark the Database as a hub
 }
