@@ -24,22 +24,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const errorMessageUser = "it's not allowed to grant ALL PRIVILEGES"
+
 func TestExtraPrivilegesFail1(t *testing.T) {
 	privileges := []string{consts.ALL_PRIVILEGES}
 	err := v1beta1.TestExtraPrivileges(privileges)
-	assert.ErrorContains(t, err, "it's not allowed to grant ALL PRIVILEGES")
+	assert.ErrorContains(t, err, errorMessageUser)
 }
 
 func TestExtraPrivilegesFail2(t *testing.T) {
 	privileges := []string{"all privileges"}
 	err := v1beta1.TestExtraPrivileges(privileges)
-	assert.ErrorContains(t, err, "it's not allowed to grant ALL PRIVILEGES")
+	assert.ErrorContains(t, err, errorMessageUser)
 }
 
 func TestExtraPrivilegesFail3(t *testing.T) {
 	privileges := []string{"aLL PriVileges"}
 	err := v1beta1.TestExtraPrivileges(privileges)
-	assert.ErrorContains(t, err, "it's not allowed to grant ALL PRIVILEGES")
+	assert.ErrorContains(t, err, errorMessageUser)
 }
 
 func TestExtraPrivileges(t *testing.T) {

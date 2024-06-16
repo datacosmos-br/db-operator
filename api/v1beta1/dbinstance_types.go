@@ -290,4 +290,6 @@ func (dbin *DbInstance) GetSecretName() string {
 	return ""
 }
 
-func (db *DbInstance) Hub() {}
+func (db *DbInstance) Hub() {
+	// Function to mark the DbInstance as a hub
+}

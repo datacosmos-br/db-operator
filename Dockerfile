@@ -1,4 +1,4 @@
-FROM golang:1.22.2-alpine3.18 as builder
+FROM golang:1.22.4 AS builder
 
 ARG OPERATOR_VERSION
 
@@ -15,10 +15,9 @@ RUN go mod download
 # build
 COPY . .
 
-ARG GOARCH
-RUN GOOS=linux GOARCH=$GOARCH CGO_ENABLED=0 go build -tags build -o /usr/local/bin/db-operator -ldflags="-X 'github.com/db-operator/db-operator/internal/helpers/common.OperatorVersion=${OPERATOR_VERSION}'" cmd/main.go
+RUN CGO_ENABLED=0 go build -tags build -o /usr/local/bin/db-operator -ldflags="-X 'github.com/db-operator/db-operator/internal/helpers/common.OperatorVersion=${OPERATOR_VERSION}'" cmd/main.go
 
-FROM alpine:3.18
+FROM alpine:3.20
 LABEL org.opencontainers.image.authors="Nikolai Rodionov<allanger@zohomail.com>"
 
 ENV USER_UID=1001
