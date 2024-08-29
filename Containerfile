@@ -1,6 +1,4 @@
-FROM golang:1.22-alpine3.19 AS builder
-
-ARG OPERATOR_VERSION
+FROM --platform=$BUILDPLATFORM registry.hub.docker.com/library/golang:1.22.2-alpine3.18 as builder
 
 RUN apk update && apk upgrade && \
     apk add --no-cache bash build-base
@@ -14,11 +12,12 @@ RUN go mod download
 
 # build
 COPY . .
+ARG TARGETARCH
+RUN GOOS=linux GOARCH=$TARGETARCH CGO_ENABLED=0 go build -tags build -o /usr/local/bin/db-operator cmd/main.go
 
-RUN CGO_ENABLED=0 go build -tags build -o /usr/local/bin/db-operator -ldflags="-X 'github.com/db-operator/db-operator/internal/helpers/common.OperatorVersion=${OPERATOR_VERSION}'" cmd/main.go
 
-FROM alpine:3.19
-LABEL org.opencontainers.image.authors="Nikolai Rodionov<allanger@zohomail.com>"
+FROM registry.hub.docker.com/library/alpine:3.18
+LABEL org.opencontainers.image.authors="Nikolai Rodionov<allanger@badhouseplants.net>"
 
 ENV USER_UID=1001
 ENV USER_NAME=db-operator
