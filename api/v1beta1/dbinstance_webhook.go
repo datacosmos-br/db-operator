@@ -68,15 +68,6 @@ func TestAllowedPrivileges(privileges []string) error {
 	return nil
 }
 
-// Wrapper methods to implement the admission.Validator interface
-func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
-	return r.ValidateCreateWithContext(context.Background(), dbInstanceMgr.GetClient())
-}
-
-func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	return r.ValidateUpdateWithContext(context.Background(), old, dbInstanceMgr.GetClient())
-}
-
 func (r *DbInstance) ValidateDelete() (admission.Warnings, error) {
 	return r.ValidateDeleteWithContext(context.Background(), dbInstanceMgr.GetClient())
 }
@@ -97,7 +88,7 @@ func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
 	if err := ValidateEngine(r.Spec.Engine); err != nil {
 		return nil, err
 	}
-	if err := r.ValidateExistingDatabase(ctx, c); err != nil {
+	if err := r.ValidateExistingDatabase(context.Background(), dbInstanceMgr.GetClient()); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -122,7 +113,7 @@ func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, err
 		return nil, err
 	}
 
-	if err := r.ValidateExistingDatabase(ctx, c); err != nil {
+	if err := r.ValidateExistingDatabase(context.Background(), dbInstanceMgr.GetClient()); err != nil {
 		return nil, err
 	}
 	return nil, nil
