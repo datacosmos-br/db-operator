@@ -96,6 +96,7 @@ func (m Mysql) executeQuery(ctx context.Context, query string, admin *DatabaseUs
 		log.Error(err, "failed to get db connection")
 		return err
 	}
+	defer db.Close()
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -114,6 +115,7 @@ func (m Mysql) execAsUser(ctx context.Context, query string, user *DatabaseUser)
 		log.Error(err, "failed to get db connection")
 		return err
 	}
+	defer db.Close()
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -132,6 +134,7 @@ func (m Mysql) isRowExist(ctx context.Context, query string, admin *DatabaseUser
 		log.Error(err, "failed to get db connection")
 		return false
 	}
+	defer db.Close()
 
 	var result string
 	err = db.QueryRow(query).Scan(&result)
@@ -157,6 +160,7 @@ func (m Mysql) CheckStatus(ctx context.Context, user *DatabaseUser) error {
 	if err != nil {
 		return err
 	}
+	defer db.Close()
 
 	if err := db.Ping(); err != nil {
 		db.Close()
