@@ -121,8 +121,7 @@ clean: ## Clean up old binaries and images
 # ---------------------------------------------------------------------
 lint: ## lint go code
 	echo "desired golangci-lint version is ${GOLANGCI_LINT_VERSION}"
-	@go get -u all
-	@go mod tidy
+	@go mod download
 	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
 	$(LOCALBIN)/golangci-lint --version
 	$(LOCALBIN)/golangci-lint run ./...  --timeout 240s
@@ -173,6 +172,10 @@ envtest: ## Download envtest-setup locally if necessary.
 # ---------------------------------------------------------------------
 # -- Additional helpers
 # ---------------------------------------------------------------------
+
+desired_go_version: ## get a desired go version from the Containerfile
+	@grep -o -P '(?<=golang:).*(?=-alpine)' Containerfile
+
 k3s_mac_lima_create: ## create local k8s using lima
 	limactl start --tty=false ./resources/lima/k3s.yaml
 
