@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/strings/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -66,10 +65,6 @@ func TestAllowedPrivileges(privileges []string) error {
 		}
 	}
 	return nil
-}
-
-func (r *DbInstance) ValidateDelete() (admission.Warnings, error) {
-	return r.ValidateDeleteWithContext(context.Background(), dbInstanceMgr.GetClient())
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
@@ -158,7 +153,7 @@ func ValidateEngine(engine string) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateDeleteWithContext(ctx context.Context, c client.Client) (admission.Warnings, error) {
+func (r *DbInstance) ValidateDelete() (admission.Warnings, error) {
 	dbinstancelog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
