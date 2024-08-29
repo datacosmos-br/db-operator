@@ -15,9 +15,9 @@ FULL_IMAGE_TAG ?= ${REGISTRY}/${REPO}:${IMAGE_TAG}
 # ---------------------------------------------------------------------
 ENVTEST_K8S_VERSION = 1.28.0
 # ---------------------------------------------------------------------
-# -- CONTROLLER_GET_VERSION a version of the controller-get tool
+# -- CONTROLLER_GEN_VERSION a version of the controller-get tool
 # ---------------------------------------------------------------------
-CONTROLLER_GET_VERSION = v0.14.0
+CONTROLLER_GEN_VERSION = v0.14.0
 # ---------------------------------------------------------------------
 # -- K8s version to start a local kubernetes
 # ---------------------------------------------------------------------
@@ -25,7 +25,7 @@ K8S_VERSION ?= v1.22.3
 # ---------------------------------------------------------------------
 # -- Helper tools version
 # ---------------------------------------------------------------------
-GOLANGCI_LINT_VERSION ?= v1.55.2
+GOLANGCI_LINT_VERSION ?= v1.59.1
 # ---------------------------------------------------------------------
 # -- Get the currently used golang install path 
 # --  (in GOPATH/bin, unless GOBIN is set)
@@ -120,9 +120,12 @@ clean: ## Clean up old binaries and images
 # -- Go related rules
 # ---------------------------------------------------------------------
 lint: ## lint go code
+	echo "desired golangci-lint version is ${GOLANGCI_LINT_VERSION}"
+	@go get -u all
 	@go mod tidy
 	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
-	$(LOCALBIN)/golangci-lint run ./...
+	$(LOCALBIN)/golangci-lint --version
+	$(LOCALBIN)/golangci-lint run ./...  --timeout 240s
 
 fmt: ## Format go code
 	@test -s $(LOCALBIN)/gofumpt || GOBIN=$(LOCALBIN) go install mvdan.cc/gofumpt@latest
@@ -160,7 +163,7 @@ generate: controller-gen ## generate supporting code for custom resource types
 
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@${CONTROLLER_GET_VERSION}
+	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@${CONTROLLER_GEN_VERSION}
 
 .PHONY: envtest
 envtest: ## Download envtest-setup locally if necessary.
