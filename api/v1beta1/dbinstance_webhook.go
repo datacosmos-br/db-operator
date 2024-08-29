@@ -82,9 +82,8 @@ func (r *DbInstance) ValidateDelete() (admission.Warnings, error) {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateCreateWithContext(ctx context.Context, c client.Client) (admission.Warnings, error) {
-	dbinstancelog.Info("validate create", "name", r.Name)
-	if err := TestAllowedPrivileges(r.Spec.AllowedPriveleges); err != nil {
+func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
+	if err := TestAllowedPrivileges(r.Spec.AllowedPrivileges); err != nil {
 		return nil, err
 	}
 
@@ -105,9 +104,8 @@ func (r *DbInstance) ValidateCreateWithContext(ctx context.Context, c client.Cli
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateUpdateWithContext(ctx context.Context, old runtime.Object, c client.Client) (admission.Warnings, error) {
-	dbinstancelog.Info("validate update", "name", r.Name)
-	if err := TestAllowedPrivileges(r.Spec.AllowedPriveleges); err != nil {
+func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+	if err := TestAllowedPrivileges(r.Spec.AllowedPrivileges); err != nil {
 		return nil, err
 	}
 

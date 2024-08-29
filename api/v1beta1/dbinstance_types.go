@@ -37,7 +37,7 @@ type DbInstanceSpec struct {
 	Monitoring      DbInstanceMonitoring    `json:"monitoring,omitempty"`
 	SSLConnection   DbInstanceSSLConnection `json:"sslConnection,omitempty"`
 	// A list of privileges that are allowed to be set as Dbuser's extra privileges
-	AllowedPriveleges []string `json:"allowedPriveleges,omitempty"`
+	AllowedPrivileges []string `json:"allowedPrivileges,omitempty"`
 	DbInstanceSource  `json:",inline"`
 }
 
