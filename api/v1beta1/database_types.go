@@ -63,8 +63,18 @@ type MongoDB struct {
 
 // Clickhouse struct should be used to provide resource that only applicable to Clickhouse
 type Clickhouse struct {
-	ReplicatedTables []string `json:"replicatedTables,omitempty"`
-	ClusterName      string   `json:"clusterName,omitempty"`
+	Cluster string `json:"clusterName,omitempty"`
+	// Shard name for distributed tables
+	Shard string `json:"shard,omitempty"`
+
+	// Replication factor for tables
+	ReplicationFactor int `json:"replicationFactor,omitempty"`
+
+	// Engine type for the ClickHouse database (e.g., MergeTree, ReplicatedMergeTree)
+	Engine string `json:"engine,omitempty"`
+
+	// Additional settings that might be necessary for ClickHouse configuration
+	Settings map[string]string `json:"settings,omitempty"`
 }
 
 // Oracle struct should be used to provide resource that only applicable to Oracle

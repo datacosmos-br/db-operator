@@ -392,10 +392,22 @@ spec:
                 properties:
                   clusterName:
                     type: string
-                  replicatedTables:
-                    items:
+                  engine:
+                    description: Engine type for the ClickHouse database (e.g., MergeTree,
+                      ReplicatedMergeTree)
+                    type: string
+                  replicationFactor:
+                    description: Replication factor for tables
+                    type: integer
+                  settings:
+                    additionalProperties:
                       type: string
-                    type: array
+                    description: Additional settings that might be necessary for ClickHouse
+                      configuration
+                    type: object
+                  shard:
+                    description: Shard name for distributed tables
+                    type: string
                 type: object
               credentials:
                 description: |-
