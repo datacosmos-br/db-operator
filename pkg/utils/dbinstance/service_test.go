@@ -46,7 +46,6 @@ func TestPostgresGenericInstanceCreate(t *testing.T) {
 	assert.Error(t, err, "expected no error %v", err)
 }
 
-
 // TestMysqlGenericInstanceUpdateNoError if upgrading mysql generic instance works as expected
 func TestMysqlGenericInstanceUpdateNoError(t *testing.T) {
 	mysqlInstance := testGenericMysqlInstance()
