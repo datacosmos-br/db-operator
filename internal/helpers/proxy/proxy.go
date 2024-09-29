@@ -29,6 +29,7 @@ import (
 	"github.com/db-operator/db-operator/pkg/utils/kci"
 	proxy "github.com/db-operator/db-operator/pkg/utils/proxy"
 	"github.com/sirupsen/logrus"
+	"math"
 )
 
 var (
@@ -98,11 +99,16 @@ func DetermineProxyTypeForInstance(conf *config.Config, dbin *kindav1beta1.DbIns
 	switch backend {
 	case "google":
 		portString := dbin.Status.Info["DB_PORT"]
-		port, err := strconv.Atoi(portString)
+		port64, err := strconv.ParseInt(portString, 10, 32)
 		if err != nil {
 			logrus.Errorf("can not convert DB_PORT to int - %s", err)
 			return nil, err
 		}
+		if port64 < math.MinInt32 || port64 > math.MaxInt32 {
+			logrus.Errorf("DB_PORT value out of int32 range: %d", port64)
+			return nil, errors.New("DB_PORT value out of int32 range")
+		}
+		port := int32(port64)
 
 		labels := map[string]string{
 			"app":           "cloudproxy",
