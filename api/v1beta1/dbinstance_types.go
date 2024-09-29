@@ -1,5 +1,6 @@
 /*
  * Copyright 2021 kloeckner.i GmbH
+ * Copyright 2023 DB-Operator Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +18,12 @@
 package v1beta1
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -37,11 +41,14 @@ type DbInstanceSpec struct {
 	DbInstanceSource  `json:",inline"`
 }
 
-// DbInstanceSource represents the source of a instance.
+// DbInstanceSource represents the source of an instance.
 // Only one of its members may be specified.
 type DbInstanceSource struct {
-	Google  *GoogleInstance  `json:"google,omitempty" protobuf:"bytes,1,opt,name=google"`
-	Generic *GenericInstance `json:"generic,omitempty" protobuf:"bytes,2,opt,name=generic"`
+	Google    *GoogleInstance    `json:"google,omitempty" protobuf:"bytes,1,opt,name=google"`
+	Generic   *GenericInstance   `json:"generic,omitempty" protobuf:"bytes,2,opt,name=generic"`
+	OracleOCI *OracleOCIInstance `json:"oracleoci,omitempty" protobuf:"bytes,3,opt,name=oracleoci"`
+	Azure     *AzureInstance     `json:"azure,omitempty" protobuf:"bytes,4,opt,name=azure"`
+	AWS       *AWSInstance       `json:"aws,omitempty" protobuf:"bytes,5,opt,name=aws"`
 }
 
 // DbInstanceStatus defines the observed state of DbInstance
@@ -62,6 +69,30 @@ type GoogleInstance struct {
 	ClientSecret  NamespacedName `json:"clientSecretRef,omitempty"`
 }
 
+// OracleOCIInstance is used when instance type is Oracle OCI
+type OracleOCIInstance struct {
+	InstanceName  string         `json:"instance"`
+	ConfigmapName NamespacedName `json:"configmapRef"`
+	APIEndpoint   string         `json:"apiEndpoint,omitempty"`
+	ClientSecret  NamespacedName `json:"clientSecretRef,omitempty"`
+}
+
+// AzureInstance is used when instance type is Azure
+type AzureInstance struct {
+	InstanceName  string         `json:"instance"`
+	ConfigmapName NamespacedName `json:"configmapRef"`
+	APIEndpoint   string         `json:"apiEndpoint,omitempty"`
+	ClientSecret  NamespacedName `json:"clientSecretRef,omitempty"`
+}
+
+// AWSInstance is used when instance type is AWS
+type AWSInstance struct {
+	InstanceName  string         `json:"instance"`
+	ConfigmapName NamespacedName `json:"configmapRef"`
+	APIEndpoint   string         `json:"apiEndpoint,omitempty"`
+	ClientSecret  NamespacedName `json:"clientSecretRef,omitempty"`
+}
+
 // BackendServer defines backend database server
 type BackendServer struct {
 	Host          string `json:"host"`
@@ -71,7 +102,7 @@ type BackendServer struct {
 }
 
 // GenericInstance is used when instance type is generic
-// and describes necessary informations to use instance
+// and describes necessary information to use instance
 // generic instance can be any backend, it must be reachable by described address and port
 type GenericInstance struct {
 	Host         string   `json:"host,omitempty"`
@@ -103,10 +134,10 @@ type DbInstanceMonitoring struct {
 	Enabled bool `json:"enabled"`
 }
 
-// DbInstanceSSLConnection defines weather connection from db-operator to instance has to be ssl or not
+// DbInstanceSSLConnection defines whether connection from db-operator to instance has to be ssl or not
 type DbInstanceSSLConnection struct {
 	Enabled bool `json:"enabled"`
-	// SkipVerity use SSL connection, but don't check against a CA
+	// SkipVerify use SSL connection, but don't check against a CA
 	SkipVerify bool `json:"skip-verify"`
 }
 
@@ -141,11 +172,29 @@ func init() {
 
 // ValidateEngine checks if defined engine by DbInstance object is supported by db-operator
 func (dbin *DbInstance) ValidateEngine() error {
-	if (dbin.Spec.Engine == "mysql") || (dbin.Spec.Engine == "postgres") {
+	if (dbin.Spec.Engine == "mysql") || (dbin.Spec.Engine == "postgres") ||
+		(dbin.Spec.Engine == "mongodb") || (dbin.Spec.Engine == "clickhouse") ||
+		(dbin.Spec.Engine == "oracle") || (dbin.Spec.Engine == "sqlserver") {
 		return nil
 	}
 
 	return errors.New("not supported engine type")
+}
+
+// ValidateExistingDatabase checks if there's an existing database for the same instance in any namespace
+func (dbin *DbInstance) ValidateExistingDatabase(ctx context.Context, c client.Client) error {
+	var dbList DbInstanceList
+	if err := c.List(ctx, &dbList); err != nil {
+		return err
+	}
+
+	for _, db := range dbList.Items {
+		if db.Spec.AdminUserSecret == dbin.Spec.AdminUserSecret && db.Name != dbin.Name {
+			return fmt.Errorf("a database for instance %s already exists in namespace %s", dbin.Spec.AdminUserSecret, db.Namespace)
+		}
+	}
+
+	return nil
 }
 
 // ValidateBackend checks if backend type of instance is defined properly
@@ -154,7 +203,9 @@ func (dbin *DbInstance) ValidateEngine() error {
 func (dbin *DbInstance) ValidateBackend() error {
 	source := dbin.Spec.DbInstanceSource
 
-	if (source.Google == nil) && (source.Generic == nil) {
+	if source.Google == nil && source.Generic == nil &&
+		source.OracleOCI == nil && source.Azure == nil &&
+		source.AWS == nil {
 		return errors.New("no instance type defined")
 	}
 
@@ -165,6 +216,18 @@ func (dbin *DbInstance) ValidateBackend() error {
 	}
 
 	if source.Generic != nil {
+		numSources++
+	}
+
+	if source.OracleOCI != nil {
+		numSources++
+	}
+
+	if source.Azure != nil {
+		numSources++
+	}
+
+	if source.AWS != nil {
 		numSources++
 	}
 
@@ -189,6 +252,18 @@ func (dbin *DbInstance) GetBackendType() (string, error) {
 		return "google", nil
 	}
 
+	if source.OracleOCI != nil {
+		return "oracleoci", nil
+	}
+
+	if source.Azure != nil {
+		return "azure", nil
+	}
+
+	if source.AWS != nil {
+		return "aws", nil
+	}
+
 	if source.Generic != nil {
 		return "generic", nil
 	}
@@ -210,9 +285,11 @@ func (dbin *DbInstance) IsDeleted() bool {
 	return dbin.GetDeletionTimestamp() != nil
 }
 
-// This method isn's supported by dbin
+// This method isn't supported by dbin
 func (dbin *DbInstance) GetSecretName() string {
 	return ""
 }
 
-func (db *DbInstance) Hub() {}
+func (db *DbInstance) Hub() {
+	// Function to mark the DbInstance as a hub
+}

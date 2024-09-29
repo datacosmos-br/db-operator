@@ -18,11 +18,10 @@ package controllers
 
 import (
 	"context"
-	"errors"
-	"strconv"
 	"time"
 
 	kindav1beta1 "github.com/db-operator/db-operator/api/v1beta1"
+	"github.com/db-operator/db-operator/internal/helpers/backend"
 	commonhelper "github.com/db-operator/db-operator/internal/helpers/common"
 	kubehelper "github.com/db-operator/db-operator/internal/helpers/kube"
 	proxyhelper "github.com/db-operator/db-operator/internal/helpers/proxy"
@@ -100,7 +99,6 @@ func (r *DbInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	phase := dbin.Status.Phase
-
 	start := time.Now()
 	defer func() { promDBInstancesPhaseTime.WithLabelValues(phase).Observe(time.Since(start).Seconds()) }()
 
@@ -139,8 +137,8 @@ func (r *DbInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return reconcileResult, err
 		}
 		dbin.Status.Phase = dbInstancePhaseRunning
-
 	}
+
 	return reconcileResult, nil
 }
 
@@ -169,78 +167,13 @@ func (r *DbInstanceReconciler) create(ctx context.Context, dbin *kindav1beta1.Db
 		return err
 	}
 
-	backend, err := dbin.GetBackendType()
+	dbBackend := backend.DbBackend{
+		Client:     r.Client,
+		KubeHelper: r.kubeHelper,
+	}
+	instance, err := dbBackend.GetInstance(ctx, dbin, cred)
 	if err != nil {
 		return err
-	}
-
-	var instance dbinstance.DbInstance
-	switch backend {
-	case "google":
-		configmap, err := kci.GetConfigResource(ctx, dbin.Spec.Google.ConfigmapName.ToKubernetesType())
-		if err != nil {
-			log.Error(err, "failed reading GCSQL instance config",
-				"namespace", dbin.Spec.Google.ConfigmapName.Namespace,
-				"name", dbin.Spec.Google.ConfigmapName.Name,
-			)
-			return err
-		}
-
-		name := dbin.Spec.Google.InstanceName
-		config := configmap.Data["config"]
-		user := cred.Username
-		password := cred.Password
-		apiEndpoint := dbin.Spec.Google.APIEndpoint
-
-		instance = dbinstance.GsqlNew(name, config, user, password, apiEndpoint)
-	case "generic":
-		var host string
-		var port uint16
-		var publicIP string
-
-		if from := dbin.Spec.Generic.HostFrom; from != nil {
-			host, err = r.kubeHelper.GetValueFrom(ctx, from.Kind, from.Namespace, from.Name, from.Key)
-			if err != nil {
-				return err
-			}
-		} else {
-			host = dbin.Spec.Generic.Host
-		}
-
-		if from := dbin.Spec.Generic.PortFrom; from != nil {
-			portStr, err := r.kubeHelper.GetValueFrom(ctx, from.Kind, from.Namespace, from.Name, from.Key)
-			if err != nil {
-				return err
-			}
-			port64, err := strconv.ParseUint(portStr, 10, 64)
-			if err != nil {
-				return err
-			}
-			port = uint16(port64)
-		} else {
-			port = dbin.Spec.Generic.Port
-		}
-
-		if from := dbin.Spec.Generic.PublicIPFrom; from != nil {
-			publicIP, err = r.kubeHelper.GetValueFrom(ctx, from.Kind, from.Namespace, from.Name, from.Key)
-			if err != nil {
-				return err
-			}
-		} else {
-			publicIP = dbin.Spec.Generic.PublicIP
-		}
-		instance = &dbinstance.Generic{
-			Host:         host,
-			Port:         port,
-			PublicIP:     publicIP,
-			Engine:       dbin.Spec.Engine,
-			User:         cred.Username,
-			Password:     cred.Password,
-			SSLEnabled:   dbin.Spec.SSLConnection.Enabled,
-			SkipCAVerify: dbin.Spec.SSLConnection.SkipVerify,
-		}
-	default:
-		return errors.New("not supported backend type")
 	}
 
 	info, err := dbinstance.Create(ctx, instance)
@@ -258,7 +191,9 @@ func (r *DbInstanceReconciler) create(ctx context.Context, dbin *kindav1beta1.Db
 		}
 	}
 
+	// Successfully created the instance, update the status info
 	dbin.Status.Info = info
+	log.Info("DB instance created successfully", "backend", dbin.Spec.Engine)
 	return nil
 }
 
@@ -291,53 +226,60 @@ func (r *DbInstanceReconciler) createProxy(ctx context.Context, dbin *kindav1bet
 	proxyInterface, err := proxyhelper.DetermineProxyTypeForInstance(r.Conf, dbin)
 	if err != nil {
 		if err == proxyhelper.ErrNoProxySupport {
+			log.Info("no proxy support for this instance type", "InstanceID", dbin.Name)
 			return nil
 		}
+		log.Error(err, "error determining proxy type")
 		return err
 	}
 
-	// create proxy deployment
+	// Create proxy deployment
 	deploy, err := proxy.BuildDeployment(proxyInterface)
 	if err != nil {
+		log.Error(err, "failed to build proxy deployment")
 		return err
 	}
 	err = r.Create(ctx, deploy)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			// if resource already exists, update
+			log.Info("proxy deployment already exists, updating", "DeploymentName", deploy.Name)
 			err = r.Update(ctx, deploy)
 			if err != nil {
-				log.Error(err, "failed updating proxy deployment")
+				log.Error(err, "failed to update proxy deployment")
 				return err
 			}
 		} else {
 			// failed to create deployment
-			log.Error(err, "failed creating proxy deployment")
+			log.Error(err, "failed to create proxy deployment")
 			return err
 		}
 	}
 
-	// create proxy service
+	// Create proxy service
 	svc, err := proxy.BuildService(proxyInterface)
 	if err != nil {
+		log.Error(err, "failed to build proxy service")
 		return err
 	}
 	err = r.Create(ctx, svc)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			// if resource already exists, update
-			patch := client.MergeFrom(svc)
+			log.Info("proxy service already exists, patching", "ServiceName", svc.Name)
+			patch := client.MergeFrom(svc.DeepCopy())
 			err = r.Patch(ctx, svc, patch)
 			if err != nil {
-				log.Error(err, "failed patching proxy service")
+				log.Error(err, "failed to patch proxy service")
 				return err
 			}
 		} else {
 			// failed to create service
-			log.Error(err, "failed creating proxy service")
+			log.Error(err, "failed to create proxy service")
 			return err
 		}
 	}
 
+	log.Info("proxy setup completed successfully", "InstanceID", dbin.Name)
 	return nil
 }

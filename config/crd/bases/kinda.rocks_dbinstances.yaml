@@ -242,6 +242,80 @@ spec:
                 items:
                   type: string
                 type: array
+              aws:
+                description: AWSInstance is used when instance type is AWS
+                properties:
+                  apiEndpoint:
+                    type: string
+                  clientSecretRef:
+                    description: |-
+                      NamespacedName is a fork of the kubernetes api type of the same name.
+                      Sadly this is required because CRD structs must have all fields json tagged and the kubernetes type is not tagged.
+                    properties:
+                      Name:
+                        type: string
+                      Namespace:
+                        type: string
+                    required:
+                    - Name
+                    - Namespace
+                    type: object
+                  configmapRef:
+                    description: |-
+                      NamespacedName is a fork of the kubernetes api type of the same name.
+                      Sadly this is required because CRD structs must have all fields json tagged and the kubernetes type is not tagged.
+                    properties:
+                      Name:
+                        type: string
+                      Namespace:
+                        type: string
+                    required:
+                    - Name
+                    - Namespace
+                    type: object
+                  instance:
+                    type: string
+                required:
+                - configmapRef
+                - instance
+                type: object
+              azure:
+                description: AzureInstance is used when instance type is Azure
+                properties:
+                  apiEndpoint:
+                    type: string
+                  clientSecretRef:
+                    description: |-
+                      NamespacedName is a fork of the kubernetes api type of the same name.
+                      Sadly this is required because CRD structs must have all fields json tagged and the kubernetes type is not tagged.
+                    properties:
+                      Name:
+                        type: string
+                      Namespace:
+                        type: string
+                    required:
+                    - Name
+                    - Namespace
+                    type: object
+                  configmapRef:
+                    description: |-
+                      NamespacedName is a fork of the kubernetes api type of the same name.
+                      Sadly this is required because CRD structs must have all fields json tagged and the kubernetes type is not tagged.
+                    properties:
+                      Name:
+                        type: string
+                      Namespace:
+                        type: string
+                    required:
+                    - Name
+                    - Namespace
+                    type: object
+                  instance:
+                    type: string
+                required:
+                - configmapRef
+                - instance
+                type: object
               backup:
                 description: DbInstanceBackup defines name of google bucket to use
                   for storing database dumps for backup when backup is enabled
@@ -258,7 +332,7 @@ spec:
               generic:
                 description: |-
                   GenericInstance is used when instance type is generic
-                  and describes necessary informations to use instance
+                  and describes necessary information to use instance
                   generic instance can be any backend, it must be reachable by described address and port
                 properties:
                   backupHost:
@@ -369,14 +443,52 @@ spec:
                 required:
                 - enabled
                 type: object
+              oracleoci:
+                description: OracleOCIInstance is used when instance type is Oracle
+                  OCI
+                properties:
+                  apiEndpoint:
+                    type: string
+                  clientSecretRef:
+                    description: |-
+                      NamespacedName is a fork of the kubernetes api type of the same name.
+                      Sadly this is required because CRD structs must have all fields json tagged and the kubernetes type is not tagged.
+                    properties:
+                      Name:
+                        type: string
+                      Namespace:
+                        type: string
+                    required:
+                    - Name
+                    - Namespace
+                    type: object
+                  configmapRef:
+                    description: |-
+                      NamespacedName is a fork of the kubernetes api type of the same name.
+                      Sadly this is required because CRD structs must have all fields json tagged and the kubernetes type is not tagged.
+                    properties:
+                      Name:
+                        type: string
+                      Namespace:
+                        type: string
+                    required:
+                    - Name
+                    - Namespace
+                    type: object
+                  instance:
+                    type: string
+                required:
+                - configmapRef
+                - instance
+                type: object
               sslConnection:
-                description: DbInstanceSSLConnection defines weather connection from
+                description: DbInstanceSSLConnection defines whether connection from
                   db-operator to instance has to be ssl or not
                 properties:
                   enabled:
                     type: boolean
                   skip-verify:
-                    description: SkipVerity use SSL connection, but don't check against
+                    description: SkipVerify use SSL connection, but don't check against
                       a CA
                     type: boolean
                 required:

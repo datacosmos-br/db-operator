@@ -23,11 +23,15 @@ spec:
       jsonPath: .spec.databaseRef
       name: DatabaseName
       type: string
+    - description: To which databases user should have access
+      jsonPath: .spec.databaseRefs
+      name: DatabaseNames
+      type: string
     - description: A type of access the user has
       jsonPath: .spec.accessType
       name: AccessType
       type: string
-    - description: time since creation of resos¡urce
+    - description: time since creation of resource
       jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -91,8 +95,12 @@ spec:
               databaseRef:
                 description: |-
                   DatabaseRef should contain a name of a Database to create a user there
-                  Database should be in the same namespace with the user
+                  Database should be in the same namespace with the user, unless NamespaceRef is specified
                 type: string
+              databaseRefs:
+                items:
+                  type: string
+                type: array
               extraPrivileges:
                 description: A list of additional roles that should be added to the
                   user
@@ -113,12 +121,15 @@ spec:
                         changes it's now set to true. It should be changed in
                         in the next API version
                 type: boolean
+              namespaceRef:
+                type: string
               secretName:
                 description: SecretName name that should be used to save user's credentials
                 type: string
+              user:
+                type: string
             required:
             - accessType
-            - databaseRef
             - secretName
             type: object
           status:
