@@ -1,4 +1,5 @@
 /*
+ * Copyright 2021 kloeckner.i GmbH
  * Copyright 2023 DB-Operator Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,16 +18,21 @@
 package v1beta1
 
 import (
+	"context"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // DbUserSpec defines the desired state of DbUser
 type DbUserSpec struct {
 	// DatabaseRef should contain a name of a Database to create a user there
-	// Database should be in the same namespace with the user
-	DatabaseRef string `json:"databaseRef"`
+	// Database should be in the same namespace with the user, unless NamespaceRef is specified
+	DatabaseRef  string   `json:"databaseRef,omitempty"`
+	DatabaseRefs []string `json:"databaseRefs,omitempty"`
+	NamespaceRef string   `json:"namespaceRef,omitempty"`
+	UserName     string   `json:"user,omitempty"`
 	// AccessType that should be given to a user
 	// Currently only readOnly and readWrite are supported by the operator
 	AccessType string `json:"accessType"`
@@ -63,8 +69,9 @@ type DbUserStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Status",type=boolean,JSONPath=`.status.status`,description="current dbuser status"
 //+kubebuilder:printcolumn:name="DatabaseName",type=string,JSONPath=`.spec.databaseRef`,description="To which database user should have access"
+//+kubebuilder:printcolumn:name="DatabaseNames",type=string,JSONPath=`.spec.databaseRefs`,description="To which databases user should have access"
 //+kubebuilder:printcolumn:name="AccessType",type=string,JSONPath=`.spec.accessType`,description="A type of access the user has"
-//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description="time since creation of resos¡urce"
+//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description="time since creation of resource"
 
 // DbUser is the Schema for the dbusers API
 type DbUser struct {
@@ -102,10 +109,59 @@ func IsAccessTypeSupported(wantedAccessType string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("the provided access type is not supported by the operator: %s - please chose one of these: %v",
+	return fmt.Errorf("the provided access type is not supported by the operator: %s - please choose one of these: %v",
 		wantedAccessType,
 		supportedAccessTypes,
 	)
+}
+
+// GetDatabase retrieves the referenced Database and validates the namespace
+func (dbu *DbUser) GetDatabase(ctx context.Context, c client.Client) (*Database, error) {
+	db := &Database{}
+	namespace := dbu.Namespace
+	if dbu.Spec.NamespaceRef != "" {
+		namespace = dbu.Spec.NamespaceRef
+	}
+
+	if dbu.Spec.DatabaseRef != "" && len(dbu.Spec.DatabaseRefs) > 0 {
+		return nil, fmt.Errorf("cannot specify both databaseRef and databaseRefs")
+	}
+
+	if dbu.Spec.DatabaseRef != "" {
+		if err := c.Get(ctx, client.ObjectKey{Name: dbu.Spec.DatabaseRef, Namespace: namespace}, db); err != nil {
+			return nil, fmt.Errorf("unable to fetch database: %v", err)
+		}
+		if err := db.ValidateDbUserNamespace(dbu.Namespace); err != nil {
+			return nil, err
+		}
+		return db, nil
+	}
+
+	for _, dbRef := range dbu.Spec.DatabaseRefs {
+		if err := c.Get(ctx, client.ObjectKey{Name: dbRef, Namespace: namespace}, db); err != nil {
+			return nil, fmt.Errorf("unable to fetch database: %v", err)
+		}
+		if err := db.ValidateDbUserNamespace(dbu.Namespace); err != nil {
+			return nil, err
+		}
+	}
+	return db, nil
+}
+
+// ValidateExistingUser checks if the user already exists for the same instance
+func (dbu *DbUser) ValidateExistingUser(ctx context.Context, c client.Client) error {
+	var dbUserList DbUserList
+	if err := c.List(ctx, &dbUserList); err != nil {
+		return err
+	}
+
+	for _, existingDbUser := range dbUserList.Items {
+		if existingDbUser.Spec.UserName == dbu.Spec.UserName && existingDbUser.Name != dbu.Name {
+			return fmt.Errorf("a user with name %s already exists in namespace %s", dbu.Spec.UserName, existingDbUser.Namespace)
+		}
+	}
+
+	return nil
 }
 
 // DbUsers don't have cleanup feature implemented

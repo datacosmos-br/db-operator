@@ -18,6 +18,7 @@
 package v1beta1
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -33,7 +34,10 @@ import (
 // log is for logging in this package.
 var databaselog = logf.Log.WithName("database-resource")
 
+var databaseMgr ctrl.Manager
+
 func (r *Database) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	databaseMgr = mgr
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -89,6 +93,12 @@ func (r *Database) ValidateCreate() (admission.Warnings, error) {
 		}
 	}
 
+	if err := r.ValidateNamespace(); err != nil {
+		return nil, err
+	}
+	if err := r.ValidateExistingDatabase(context.Background(), databaseMgr.GetClient()); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -116,13 +126,24 @@ func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 
 	// Ensure fields are immutable
 	immutableErr := "cannot change %s, the field is immutable"
-	oldDatabase, _ := old.(*Database)
+	oldDatabase, ok := old.(*Database)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast old object to Database")
+	}
+
 	if r.Spec.Instance != oldDatabase.Spec.Instance {
 		return nil, fmt.Errorf(immutableErr, "spec.instance")
 	}
 
 	if r.Spec.Postgres.Template != oldDatabase.Spec.Postgres.Template {
 		return nil, fmt.Errorf(immutableErr, "spec.postgres.template")
+	}
+
+	if err := r.ValidateNamespace(); err != nil {
+		return nil, err
+	}
+	if err := r.ValidateExistingDatabase(context.Background(), databaseMgr.GetClient()); err != nil {
+		return nil, err
 	}
 
 	return nil, nil

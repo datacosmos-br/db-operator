@@ -95,8 +95,11 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	userSecret, err := r.getDbUserSecret(ctx, dbusercr)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			dbName := fmt.Sprintf("%s-%s", dbusercr.Namespace, dbusercr.Spec.DatabaseRef)
-			secretData, err := dbhelper.GenerateDatabaseSecretData(dbusercr.ObjectMeta, dbcr.Status.Engine, dbName)
+			dbName := dbcr.Spec.DatabaseName
+			if len(dbName) == 0 {
+				dbName = fmt.Sprintf("%s-%s", dbusercr.Namespace, dbusercr.Spec.DatabaseRef)
+			}
+			secretData, err := dbhelper.GenerateDatabaseSecretData(dbusercr.ObjectMeta, dbcr.Status.Engine, dbName, dbcr.Spec.UserName)
 			if err != nil {
 				log.Error(err, "can not generate credentials for database")
 				return r.manageError(ctx, dbusercr, err, false)

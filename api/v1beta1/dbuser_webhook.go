@@ -17,6 +17,7 @@
 package v1beta1
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -25,6 +26,7 @@ import (
 	"github.com/db-operator/db-operator/pkg/consts"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -46,6 +48,16 @@ var _ webhook.Validator = &DbUser{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *DbUser) ValidateCreate() (admission.Warnings, error) {
 	warnings := []string{}
+	dbuserlog.Info("validate create", "name", r.Name)
+
+	if r.Spec.DatabaseRef != "" && len(r.Spec.DatabaseRefs) > 0 {
+		return nil, fmt.Errorf("cannot specify both databaseRef and databaseRefs")
+	}
+
+	if r.Spec.DatabaseRef == "" && len(r.Spec.DatabaseRefs) == 0 {
+		return nil, fmt.Errorf("either databaseRef or databaseRefs must be specified")
+	}
+
 	if err := TestExtraPrivileges(r.Spec.ExtraPrivileges); err != nil {
 		return nil, err
 	}
@@ -56,6 +68,16 @@ func (r *DbUser) ValidateCreate() (admission.Warnings, error) {
 
 	dbuserlog.Info("validate create", "name", r.Name)
 	if err := IsAccessTypeSupported(r.Spec.AccessType); err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+	cl, err := client.New(ctrl.GetConfigOrDie(), client.Options{})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.ValidateExistingUser(ctx, cl); err != nil {
 		return nil, err
 	}
 
@@ -75,6 +97,14 @@ func TestExtraPrivileges(privileges []string) error {
 func (r *DbUser) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	warnings := []string{}
 	dbuserlog.Info("validate update", "name", r.Name)
+
+	if r.Spec.DatabaseRef != "" && len(r.Spec.DatabaseRefs) > 0 {
+		return nil, fmt.Errorf("cannot specify both databaseRef and databaseRefs")
+	}
+
+	if r.Spec.DatabaseRef == "" && len(r.Spec.DatabaseRefs) == 0 {
+		return nil, fmt.Errorf("either databaseRef or databaseRefs must be specified")
+	}
 
 	if len(r.Spec.ExtraPrivileges) > 0 {
 		warnings = append(warnings,

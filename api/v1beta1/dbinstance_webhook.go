@@ -18,6 +18,7 @@
 package v1beta1
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -35,7 +36,10 @@ import (
 // log is for logging in this package.
 var dbinstancelog = logf.Log.WithName("dbinstance-resource")
 
+var dbInstanceMgr ctrl.Manager
+
 func (r *DbInstance) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	dbInstanceMgr = mgr
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -79,6 +83,9 @@ func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
 	if err := ValidateEngine(r.Spec.Engine); err != nil {
 		return nil, err
 	}
+	if err := r.ValidateExistingDatabase(context.Background(), dbInstanceMgr.GetClient()); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -97,6 +104,13 @@ func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, err
 		return nil, fmt.Errorf(immutableErr, "engine")
 	}
 
+	if err := ValidateConfigVsConfigFrom(r.Spec.Generic); err != nil {
+		return nil, err
+	}
+
+	if err := r.ValidateExistingDatabase(context.Background(), dbInstanceMgr.GetClient()); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -132,8 +146,8 @@ func ValidateConfigFrom(dbin *GenericInstance) error {
 }
 
 func ValidateEngine(engine string) error {
-	if !(slices.Contains([]string{"postgres", "mysql"}, engine)) {
-		return fmt.Errorf("unsupported engine: %s. please use either postgres or mysql", engine)
+	if !slices.Contains([]string{"postgres", "mysql", "mongodb", "clickhouse", "oracle", "sqlserver"}, engine) {
+		return fmt.Errorf("unsupported engine: %s. please use one of: postgres, mysql, mongodb, clickhouse, oracle, sqlserver", engine)
 	}
 	return nil
 }

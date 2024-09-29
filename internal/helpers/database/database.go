@@ -58,17 +58,17 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 	enableRdsIamImpersonate := false
 	val, ok := instance.Annotations[consts.RDS_IAM_IMPERSONATE_WORKAROUND]
 	if ok {
-	  boolVal, err := strconv.ParseBool(val)
-    if err != nil {
-      log.Info(
-			"can't parse a value of an annotation into a bool, ignoring",
-			"annotation",
-			consts.RDS_IAM_IMPERSONATE_WORKAROUND,
-			"value",
-			val,
-			"error",
-			err, 
-		) 
+		boolVal, err := strconv.ParseBool(val)
+		if err != nil {
+			log.Info(
+				"can't parse a value of an annotation into a bool, ignoring",
+				"annotation",
+				consts.RDS_IAM_IMPERSONATE_WORKAROUND,
+				"value",
+				val,
+				"error",
+				err,
+			)
 		} else {
 			enableRdsIamImpersonate = boolVal
 		}
@@ -78,18 +78,18 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 	case "postgres":
 		extList := dbcr.Spec.Postgres.Extensions
 		db := database.Postgres{
-			Backend:          backend,
-			Host:             host,
-			Port:             uint16(port),
-			Database:         dbCred.Name,
-			Monitoring:       monitoringEnabled,
-			Extensions:       extList,
-			SSLEnabled:       instance.Spec.SSLConnection.Enabled,
-			SkipCAVerify:     instance.Spec.SSLConnection.SkipVerify,
-			DropPublicSchema: dbcr.Spec.Postgres.DropPublicSchema,
-			Schemas:          dbcr.Spec.Postgres.Schemas,
-			Template:         dbcr.Spec.Postgres.Template,
-			MainUser:         dbuser,
+			Backend:                     backend,
+			Host:                        host,
+			Port:                        uint16(port),
+			Database:                    dbCred.Name,
+			Monitoring:                  monitoringEnabled,
+			Extensions:                  extList,
+			SSLEnabled:                  instance.Spec.SSLConnection.Enabled,
+			SkipCAVerify:                instance.Spec.SSLConnection.SkipVerify,
+			DropPublicSchema:            dbcr.Spec.Postgres.DropPublicSchema,
+			Schemas:                     dbcr.Spec.Postgres.Schemas,
+			Template:                    dbcr.Spec.Postgres.Template,
+			MainUser:                    dbuser,
 			RDSIAMImpersonateWorkaround: enableRdsIamImpersonate,
 		}
 		return db, dbuser, nil
@@ -163,7 +163,7 @@ func ParseDatabaseSecretData(dbcr *kindav1beta1.Database, data map[string][]byte
 // If dbName is empty, it will be generated, that should be used for database resources.
 // In case this function is called by dbuser controller, dbName should be taken from the
 // `Spec.DatabaseRef` field, so it will ba passed as the last argument
-func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName string) (map[string][]byte, error) {
+func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName string, dbUser string) (map[string][]byte, error) {
 	const (
 		// https://dev.mysql.com/doc/refman/5.7/en/identifier-length.html
 		mysqlDBNameLengthLimit = 63
@@ -173,7 +173,9 @@ func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName str
 	if len(dbName) == 0 {
 		dbName = objectMeta.Namespace + "-" + objectMeta.Name
 	}
-	dbUser := objectMeta.Namespace + "-" + objectMeta.Name
+	if dbUser == "" {
+		dbUser = objectMeta.Namespace + "-" + objectMeta.Name
+	}
 	dbPassword := kci.GeneratePass()
 
 	switch engine {

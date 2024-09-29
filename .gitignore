@@ -127,3 +127,5 @@ my-image.tar
 secrets.yaml
 
 gen-docker-compose*
+
+.env

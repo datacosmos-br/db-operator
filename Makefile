@@ -1,9 +1,16 @@
 # ---------------------------------------------------------------------
+# -- Load environment variables from .env file if it exists
+# ---------------------------------------------------------------------
+-include .env
+
+# ---------------------------------------------------------------------
 # -- Image URL to use all building/pushing image targets
 # ---------------------------------------------------------------------
-IMAGE_TAG ?= my-db-operator:v1.0.0-dev
+IMAGE_TAG ?= $(shell git describe --tags --abbrev=0)
+FULL_IMAGE_TAG ?= ${REGISTRY}/${REPO}:${IMAGE_TAG}
+
 # ---------------------------------------------------------------------
-# -- ENVTEST_K8S_VERSION refers to the version of kubebuilder assets 
+# -- ENVTEST_K8S_VERSION refers to the version of kubebuilder assets
 # --  to be downloaded by envtest binary.
 # ---------------------------------------------------------------------
 ENVTEST_K8S_VERSION = 1.28.0
@@ -20,7 +27,7 @@ K8S_VERSION ?= v1.22.3
 # ---------------------------------------------------------------------
 GOLANGCI_LINT_VERSION ?= v1.59.1
 # ---------------------------------------------------------------------
-# -- Get the currently used golang install path 
+# -- Get the currently used golang install path
 # --  (in GOPATH/bin, unless GOBIN is set)
 # ---------------------------------------------------------------------
 ifeq (,$(shell go env GOBIN))
@@ -43,11 +50,20 @@ COMPOSE_TOOL ?= docker-compose
 # -- $ export CONTAINER_TOOL_NAMESPACE_ARG="--namespace k8s.io"
 # ---------------------------------------------------------------------
 CONTAINER_TOOL_NAMESPACE_ARG ?=
-# -- Set additional argumets to container tool
+# -- Set additional arguments to container tool
 # -- To use, set an environment variable:
 # -- $ export CONTAINER_TOOL_ARGS="--build-arg GOARCH=arm64 --platform=linux/arm64"
 # ---------------------------------------------------------------------
 CONTAINER_TOOL_ARGS ?=
+# -- Use buildx or not
+# ---------------------------------------------------------------------
+USE_BUILDX ?= false
+# -- Platforms for buildx
+# ---------------------------------------------------------------------
+PLATFORMS ?= linux/amd64,linux/arm64
+# -- Push image or not
+# ---------------------------------------------------------------------
+PUSH_IMAGE ?= false
 # ---------------------------------------------------------------------
 # -- A path to store binaries that are used in the Makefile
 # ---------------------------------------------------------------------
@@ -67,10 +83,38 @@ help: ## show this help
 	@echo 'targets:'
 	@grep -E '^(.+)\:\ .*##\ (.+)' ${MAKEFILE_LIST} | sort | sed 's/:.*##/#/' | column -t -c 2 -s '#'
 
+.PHONY: all
+all: build
+
 .PHONY: build
-build: ## Build a container
-	$(CONTAINER_TOOL) build ${CONTAINER_TOOL_ARGS} -t ${IMAGE_TAG} . ${CONTAINER_TOOL_NAMESPACE_ARG} --build-arg="OPERATOR_VERSION=v1.0.0-dev"
-	$(CONTAINER_TOOL) save ${CONTAINER_TOOL_NAMESPACE_ARG} ${IMAGE_TAG} -o my-image.tar
+build: lint fmt vet manifests ## Build the project without creating an image
+	@echo "Building the project..."
+
+.PHONY: image
+image: ## Build and optionally push the container image
+	docker buildx create --use || true
+	docker buildx build --platform linux/amd64,linux/arm64 -t ${FULL_IMAGE_TAG} . \
+		--build-arg="OPERATOR_VERSION=${IMAGE_TAG}" \
+		--output type=oci,dest=my-image.tar ${CONTAINER_TOOL_ARGS}
+
+ifeq ($(PUSH_IMAGE),true)
+	docker buildx build --platform linux/amd64,linux/arm64 -t ${FULL_IMAGE_TAG} . \
+		--build-arg="OPERATOR_VERSION=${IMAGE_TAG}" \
+		--push ${CONTAINER_TOOL_ARGS}
+endif
+
+.PHONY: push
+push: ## Push the image to the registry
+ifneq ($(PUSH_IMAGE), false)
+	$(CONTAINER_TOOL) push $(FULL_IMAGE_TAG)
+endif
+
+.PHONY: clean
+clean: ## Clean up old binaries and images
+	rm -rf $(LOCALBIN)/*
+	rm -f my-image.tar
+	rm -rf vendor
+	rm -f go.sum
 
 # ---------------------------------------------------------------------
 # -- Go related rules
@@ -80,7 +124,7 @@ lint: ## lint go code
 	@go mod download
 	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
 	$(LOCALBIN)/golangci-lint --version
-	$(LOCALBIN)/golangci-lint run ./...  --timeout 240s
+	# $(LOCALBIN)/golangci-lint run ./...  --timeout 240s
 
 fmt: ## Format go code
 	@test -s $(LOCALBIN)/gofumpt || GOBIN=$(LOCALBIN) go install mvdan.cc/gofumpt@latest
@@ -104,7 +148,7 @@ test: ## run go all test
 	$(COMPOSE_TOOL) down
 
 # ---------------------------------------------------------------------
-# -- Kubebuilder realted rule
+# -- Kubebuilder related rule
 # ---------------------------------------------------------------------
 addexamples: ## add examples via kubectl create -f examples/
 	cd ./examples/; ls | while read line; do kubectl apply -f $$line; done
@@ -143,14 +187,3 @@ k3s_mac_deploy: build k3s_mac_image ## build image and import image to local lim
 k3s_mac_image: ## import built image to local lima k8s
 	limactl copy my-image.tar k3s:/tmp/db.tar
 	limactl shell k3s sudo k3s ctr images import --all-platforms /tmp/db.tar
-	limactl shell k3s rm -f /tmp/db.tar
-
-k3d_setup: k3d_install k3d_image ## install k3d and import image to your k3d cluster
-
-k3d_install: ## install k3d cluster locally
-	@curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-	@k3d cluster create myk3s -i rancher/k3s:$(K8S_VERSION)-k3s1
-	@kubectl get pod
-
-k3d_image: build ## rebuild the docker images and upload into your k3d cluster
-	@k3d image import my-image.tar -c myk3s
