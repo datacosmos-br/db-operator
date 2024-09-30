@@ -47,7 +47,7 @@ func (g *GenericBackend) GetInstance(ctx context.Context, dbin *v1beta1.DbInstan
 		if err != nil {
 			return nil, err
 		}
-		if port64 < 0 || port64 > 65535 {
+		if port64 > 65535 {
 			err := fmt.Errorf("port value out of range: %d", port64)
 			log.Error(err, "port value is out of the valid range (0-65535)")
 			return nil, err
