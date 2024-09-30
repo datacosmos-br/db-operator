@@ -99,6 +99,7 @@ func (r *DbInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	phase := dbin.Status.Phase
+
 	start := time.Now()
 	defer func() { promDBInstancesPhaseTime.WithLabelValues(phase).Observe(time.Since(start).Seconds()) }()
 
@@ -191,9 +192,7 @@ func (r *DbInstanceReconciler) create(ctx context.Context, dbin *kindav1beta1.Db
 		}
 	}
 
-	// Successfully created the instance, update the status info
 	dbin.Status.Info = info
-	log.Info("DB instance created successfully", "backend", dbin.Spec.Engine)
 	return nil
 }
 
@@ -226,10 +225,8 @@ func (r *DbInstanceReconciler) createProxy(ctx context.Context, dbin *kindav1bet
 	proxyInterface, err := proxyhelper.DetermineProxyTypeForInstance(r.Conf, dbin)
 	if err != nil {
 		if err == proxyhelper.ErrNoProxySupport {
-			log.Info("no proxy support for this instance type", "InstanceID", dbin.Name)
 			return nil
 		}
-		log.Error(err, "error determining proxy type")
 		return err
 	}
 
@@ -280,6 +277,5 @@ func (r *DbInstanceReconciler) createProxy(ctx context.Context, dbin *kindav1bet
 		}
 	}
 
-	log.Info("proxy setup completed successfully", "InstanceID", dbin.Name)
 	return nil
 }
