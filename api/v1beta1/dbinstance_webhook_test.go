@@ -153,24 +153,22 @@ func TestUnitConfigPublicIPFrom(t *testing.T) {
 	assert.NoError(t, v1beta1.ValidateConfigVsConfigFrom(spec))
 }
 
-const errorMessage = "it's not allowed to grant ALL PRIVILEGES"
-
 func TestAllowedPrivilegesFail1(t *testing.T) {
 	privileges := []string{consts.ALL_PRIVILEGES}
 	err := v1beta1.TestAllowedPrivileges(privileges)
-	assert.ErrorContains(t, err, errorMessage)
+	assert.ErrorContains(t, err, "it's not allowed to grant ALL PRIVILEGES")
 }
 
 func TestAllowedPrivilegesFail2(t *testing.T) {
 	privileges := []string{"all privileges"}
 	err := v1beta1.TestAllowedPrivileges(privileges)
-	assert.ErrorContains(t, err, errorMessage)
+	assert.ErrorContains(t, err, "it's not allowed to grant ALL PRIVILEGES")
 }
 
 func TestAllowedPrivilegesFail3(t *testing.T) {
 	privileges := []string{"aLL PriVileges"}
 	err := v1beta1.TestAllowedPrivileges(privileges)
-	assert.ErrorContains(t, err, errorMessage)
+	assert.ErrorContains(t, err, "it's not allowed to grant ALL PRIVILEGES")
 }
 
 func TestAllowedPrivileges(t *testing.T) {
