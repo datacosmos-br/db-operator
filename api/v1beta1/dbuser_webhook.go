@@ -48,8 +48,6 @@ var _ webhook.Validator = &DbUser{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *DbUser) ValidateCreate() (admission.Warnings, error) {
 	warnings := []string{}
-	dbuserlog.Info("validate create", "name", r.Name)
-
 	if r.Spec.DatabaseRef != "" && len(r.Spec.DatabaseRefs) > 0 {
 		return nil, fmt.Errorf("cannot specify both databaseRef and databaseRefs")
 	}
