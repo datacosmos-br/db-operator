@@ -20,7 +20,7 @@ jobs:
       - name: Get go version
         run: echo "GO_VERSION=$(make desired_go_version)" >> "${GITHUB_ENV}"
       - name: Setup GO
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Check Code Style
@@ -34,7 +34,7 @@ jobs:
       - name: Get go version
         run: echo "GO_VERSION=$(make desired_go_version)" >> "${GITHUB_ENV}"
       - name: Setup GO
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Run the unit tests
@@ -58,7 +58,7 @@ jobs:
       - name: Get go version
         run: echo "GO_VERSION=$(make desired_go_version)" >> "${GITHUB_ENV}"
       - name: Setup GO
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Prepare the test environment
@@ -85,7 +85,7 @@ jobs:
       - name: Get go version
         run: echo "GO_VERSION=$(make desired_go_version)" >> "${GITHUB_ENV}"
       - name: Setup GO
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Start dependencies using docker-compose
@@ -116,7 +116,7 @@ jobs:
       - name: Get go version
         run: echo "GO_VERSION=$(make desired_go_version)" >> "${GITHUB_ENV}"
       - name: Setup GO
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       # The existing apparmor profile for mysql needs to be removed.
@@ -158,7 +158,7 @@ jobs:
       - name: Get go version
         run: echo "GO_VERSION=$(make desired_go_version)" >> "${GITHUB_ENV}"
       - name: Setup GO
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       # The existing apparmor profile for mysql needs to be removed.
@@ -199,7 +199,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.go_version }}
       - name: Run the unit tests
@@ -232,7 +232,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.go_version }}
       - name: Run the unit tests
