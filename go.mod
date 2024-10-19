@@ -22,7 +22,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/exp v0.0.0-20240707233637-46b078467d37
-	golang.org/x/oauth2 v0.22.0
+	golang.org/x/oauth2 v0.23.0
 	google.golang.org/api v0.192.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.30.2
