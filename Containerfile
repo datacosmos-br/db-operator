@@ -20,8 +20,8 @@ RUN GOOS=linux GOARCH=$TARGETARCH CGO_ENABLED=0 \
   -ldflags="-X \"github.com/db-operator/db-operator/internal/helpers/common.OperatorVersion=$OPERATOR_VERSION\"" \
   -tags build -o /usr/local/bin/db-operator cmd/main.go
 
-
 FROM registry.hub.docker.com/library/alpine:3.18
+RUN uname -a
 LABEL org.opencontainers.image.authors="Nikolai Rodionov<allanger@badhouseplants.net>"
 
 ENV USER_UID=1001
