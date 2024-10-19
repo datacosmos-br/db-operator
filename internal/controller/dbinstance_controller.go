@@ -220,7 +220,7 @@ func (r *DbInstanceReconciler) broadcast(ctx context.Context, dbin *kindav1beta1
 	return nil
 }
 
-func (r *DbInstanceReconciler) createProxy(ctx context.Context, dbin *kindav1beta1.DbInstance, ownership []metav1.OwnerReference) error {
+func (r *DbInstanceReconciler) createProxy(ctx context.Context, dbin *kindav1beta1.DbInstance, _ []metav1.OwnerReference) error {
 	log := log.FromContext(ctx)
 	proxyInterface, err := proxyhelper.DetermineProxyTypeForInstance(r.Conf, dbin)
 	if err != nil {
