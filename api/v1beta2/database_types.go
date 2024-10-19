@@ -30,12 +30,12 @@ type DatabaseSpec struct {
 	Instance string `json:"instance"`
 	// If set to true, db-operator won't remove the database on the server
 	// when the Database resource is removed from Kubernetes
-	DeletionProtected bool        `json:"deletionProtected"`
-	DatabaseName      string      `json:"databaseName"`
-	UserName          string      `json:"userName"`
-	Postgres          Postgres    `json:"postgres,omitempty"`
-	Mysql             Mysql       `json:"mysql,omitempty"`
-	Credentials       Credentials `json:"credentials,omitempty"`
+	DeletionProtected bool     `json:"deletionProtected"`
+	DatabaseName      string   `json:"databaseName"`
+	UserName          string   `json:"userName"`
+	Postgres          Postgres `json:"postgres,omitempty"`
+	// Mysql             Mysql       `json:"mysql,omitempty"`
+	Credentials Credentials `json:"credentials,omitempty"`
 }
 
 // Postgres struct should be used to provide resource that only applicable to postgres

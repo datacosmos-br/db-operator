@@ -42,9 +42,6 @@ metadata:
 spec:
   instance: example-gsql # This has to be match with DbInstance name
   deletionProtected: false # Protection to not delete database when custom resource is deleted
-  backup:
-    enable: false # turn it to true when you want to use back up feature. currently only support postgres
-    cron: "0 0 * * *"
   credentials:
     secretName: example-db-credentials # DB Operator will create secret with this name. it contains db name, user, password
     setOwnerReference: false # Should secret be removed when a database is removed
@@ -126,7 +123,9 @@ ERROR: pg_stat_statements must be loaded via shared_preload_libraries
 ```
 
 ##### Schemas
+
 It's possible to drop the `Public` schema after the database creation, or/and to create additional schemas:
+
 ```YAML
 spec:
   postgres:
@@ -137,6 +136,7 @@ spec:
 ```
 
 If you initialize a database with `dropPublicSchema: false` and then later change it to `true`, or add schemas with the `schemas` field and later try to remove them by updating the manifest, you may be unable to do that. Because `db-operator` won't use `DROP CASCADE` for removing schemas, and if there are objects depending on a schema, someone with admin access will have to remove these objects manually.
+
 ##### Options
 
 Database creation options are partially supported by the operator as well (currently it's only one option, but it's about to change: https://github.com/db-operator/db-operator/issues/17)

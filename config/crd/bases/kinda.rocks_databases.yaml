@@ -606,8 +606,7 @@ spec:
             description: DatabaseSpec defines the desired state of Database
             properties:
               credentials:
-                description: Credentials should be used to setup everything relates
-                  to k8s secrets and configmaps
+                description: Mysql             Mysql       `json:"mysql,omitempty"`
                 properties:
                   secretName:
                     description: A secret with database credentials
@@ -649,32 +648,6 @@ spec:
                 description: A name of the DbInstance to which this Database should
                   be assigned
                 type: string
-              mysql:
-                description: Mysql struct should be used to provide resource that
-                  only applicable to mysql
-                properties:
-                  params:
-                    description: Define params for database creation
-                    properties:
-                      charatcterSet:
-                        description: The CHARACTER SET option specifies the default
-                          database character set.
-                        type: string
-                      collage:
-                        description: The COLLATE option specifies the default database
-                          collation.
-                        type: string
-                      encyption:
-                        description: |-
-                          The ENCRYPTION option defines the default database encryption,
-                          which is inherited by tables created in the database.
-                          The permitted values are 'Y' (encryption enabled) and 'N' (encryption disabled).
-                        enum:
-                        - "Y"
-                        - "N"
-                        type: string
-                    type: object
-                type: object
               postgres:
                 description: Postgres struct should be used to provide resource that
                   only applicable to postgres
