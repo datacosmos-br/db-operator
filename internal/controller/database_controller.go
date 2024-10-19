@@ -684,7 +684,7 @@ func (r *DatabaseReconciler) manageError(ctx context.Context, dbcr *kindav1beta2
 
 func (r *DatabaseReconciler) createSecret(ctx context.Context, dbcr *kindav1beta2.Database) (*corev1.Secret, error) {
 	log := log.FromContext(ctx)
-	secretData, err := dbhelper.GenerateDatabaseSecretData(dbcr.ObjectMeta, string(dbcr.Status.Engine), "")
+	secretData, err := dbhelper.GenerateDatabaseSecretData(dbcr.ObjectMeta, dbcr.Spec.DatabaseName, dbcr.Spec.UserName)
 	if err != nil {
 		log.Error(err, "can not generate credentials for database")
 		return nil, err

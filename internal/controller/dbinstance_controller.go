@@ -25,7 +25,6 @@ import (
 	kindav1beta2 "github.com/db-operator/db-operator/api/v1beta2"
 	kubehelper "github.com/db-operator/db-operator/internal/helpers/kube"
 	"github.com/db-operator/db-operator/pkg/config"
-	"github.com/db-operator/db-operator/pkg/utils/database"
 	kcidb "github.com/db-operator/db-operator/pkg/utils/database"
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -157,7 +156,7 @@ func (r *DbInstanceReconciler) checkConnection(ctx context.Context, dbin *kindav
 		return
 	}
 
-	dbuser := &database.DatabaseUser{
+	dbuser := &kcidb.DatabaseUser{
 		Username: username,
 		Password: password,
 	}
