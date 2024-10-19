@@ -26,9 +26,9 @@ If you get `No resources found.`, go to [how to create DbInstance](creatinginsta
       - [Postgres specific options](#postgres-specific-options)
         - [Extensions](#extensions)
         - [Schemas](#schemas)
+        - [Options](#options)
     - [ConnectingToTheDatabase](#connectingtothedatabase)
     - [CheckingDatabaseStatus](#checkingdatabasestatus)
-    - [PostgreSQL](#postgresql)
 
 ### Creating Databases
 
@@ -47,7 +47,7 @@ spec:
     cron: "0 0 * * *"
   credentials:
     secretName: example-db-credentials # DB Operator will create secret with this name. it contains db name, user, password
-    setOwnerReference: false # Should se
+    setOwnerReference: false # Should secret be removed when a database is removed
     templates:
       - name: USER_PASSWORD
         template: "{{ .Username }}-{{ .Password }}"
@@ -127,10 +127,6 @@ ERROR: pg_stat_statements must be loaded via shared_preload_libraries
 
 ##### Schemas
 It's possible to drop the `Public` schema after the database creation, or/and to create additional schemas:
-
-```YAML
-spec:
-  postgres:
 ```YAML
 spec:
   postgres:
@@ -141,6 +137,10 @@ spec:
 ```
 
 If you initialize a database with `dropPublicSchema: false` and then later change it to `true`, or add schemas with the `schemas` field and later try to remove them by updating the manifest, you may be unable to do that. Because `db-operator` won't use `DROP CASCADE` for removing schemas, and if there are objects depending on a schema, someone with admin access will have to remove these objects manually.
+##### Options
+
+Database creation options are partially supported by the operator as well (currently it's only one option, but it's about to change: https://github.com/db-operator/db-operator/issues/17)
+
 
 - [Postgres Database Templates](https://www.postgresql.org/docs/current/manage-ag-templatedbs.html): to create a database from template, you need to set `.spec.postgres.template`. It's referencing to a database on the Postgres server, but not to the k8s Database resource that is created by operator, so there is no validation on the db-operator side that a template exists.
 
@@ -288,31 +288,3 @@ Possible phases and meanings
 | `Finishing`           | Setting status of `Database` to true |
 | `Ready`               | `Database` is created and all the configs are applied. Healthy status. |
 | `Deleting`            | `Database` is being deleted. |
-
-### PostgreSQL
-
-PostgreSQL extensions listed under `spec.postgres.extensions` will be enabled by DB Operator.
-DB Operator execute `CREATE EXTENSION IF NOT EXISTS` on the target database.
-
-```YAML
-apiVersion: "kinda.rocks/v1beta1"
-kind: "Database"
-metadata:
-  name: "example-db"
-spec:
-  secretName: example-db-credentials
-  instance: example-gsql
-  deletionProtected: false
-  postgres:
-    extensions:
-      - pgcrypto
-      - uuid-ossp
-      - plpgsql
-  DatabaseName: customdbname # <NAMESPACE>-<DB_INSTANCE_NAME> by default
-  UserName: customuser # <NAMESPACE>-<DB_INSTANCE_NAME> by default
-```
-When monitoring is enabled on DbInstance spec, `pg_stat_statements` extension will be enabled.
-If below error occurs during database creation, the module must be loaded by adding pg_stat_statements to shared_preload_libraries in postgresql.conf on the server side.
-```
-ERROR: pg_stat_statements must be loaded via shared_preload_libraries
-```
