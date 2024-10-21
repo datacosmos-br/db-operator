@@ -127,12 +127,12 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup GO
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ env.GO_VERSION }}
     # The existing apparmor profile for mysql needs to be removed.
