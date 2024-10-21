@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Find the go version
       run: echo "GO_VERSION=$(make desired_go_version)" >> $GITHUB_ENV
