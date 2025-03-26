@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"strconv"
 	"time"
 
 	kindav1beta1 "github.com/db-operator/db-operator/api/v1beta1"
@@ -175,6 +177,75 @@ func (r *DbInstanceReconciler) create(ctx context.Context, dbin *kindav1beta1.Db
 	instance, err := dbBackend.GetInstance(ctx, dbin, cred)
 	if err != nil {
 		return err
+	}
+
+	var instance dbinstance.DbInstance
+	switch backend {
+	case "google":
+		configmap, err := kci.GetConfigResource(ctx, dbin.Spec.Google.ConfigmapName.ToKubernetesType())
+		if err != nil {
+			log.Error(err, "failed reading GCSQL instance config",
+				"namespace", dbin.Spec.Google.ConfigmapName.Namespace,
+				"name", dbin.Spec.Google.ConfigmapName.Name,
+			)
+			return err
+		}
+
+		name := dbin.Spec.Google.InstanceName
+		config := configmap.Data["config"]
+		user := cred.Username
+		password := cred.Password
+		apiEndpoint := dbin.Spec.Google.APIEndpoint
+
+		instance = dbinstance.GsqlNew(name, config, user, password, apiEndpoint)
+	case "generic":
+		var host string
+		var port uint16
+		var publicIP string
+
+		if from := dbin.Spec.Generic.HostFrom; from != nil {
+			host, err = r.kubeHelper.GetValueFrom(ctx, from.Kind, from.Namespace, from.Name, from.Key)
+			if err != nil {
+				return err
+			}
+		} else {
+			host = dbin.Spec.Generic.Host
+		}
+
+		if from := dbin.Spec.Generic.PortFrom; from != nil {
+			portStr, err := r.kubeHelper.GetValueFrom(ctx, from.Kind, from.Namespace, from.Name, from.Key)
+			if err != nil {
+				return err
+			}
+			port64, err := strconv.ParseUint(portStr, 10, 16)
+			if err != nil {
+				return err
+			}
+			port = uint16(port64)
+		} else {
+			port = dbin.Spec.Generic.Port
+		}
+
+		if from := dbin.Spec.Generic.PublicIPFrom; from != nil {
+			publicIP, err = r.kubeHelper.GetValueFrom(ctx, from.Kind, from.Namespace, from.Name, from.Key)
+			if err != nil {
+				return err
+			}
+		} else {
+			publicIP = dbin.Spec.Generic.PublicIP
+		}
+		instance = &dbinstance.Generic{
+			Host:         host,
+			Port:         port,
+			PublicIP:     publicIP,
+			Engine:       dbin.Spec.Engine,
+			User:         cred.Username,
+			Password:     cred.Password,
+			SSLEnabled:   dbin.Spec.SSLConnection.Enabled,
+			SkipCAVerify: dbin.Spec.SSLConnection.SkipVerify,
+		}
+	default:
+		return errors.New("not supported backend type")
 	}
 
 	info, err := dbinstance.Create(ctx, instance)
