@@ -34,12 +34,13 @@ import (
 	"github.com/db-operator/db-operator/pkg/config"
 	"github.com/db-operator/db-operator/pkg/consts"
 	commonhelper "github.com/db-operator/db-operator/pkg/helpers/common"
-	"github.com/db-operator/db-operator/pkg/helpers/database"
 	dbhelper "github.com/db-operator/db-operator/pkg/helpers/database"
 	kubehelper "github.com/db-operator/db-operator/pkg/helpers/kube"
-	"github.com/db-operator/db-operator/pkg/helpers/proxy"
 	proxyhelper "github.com/db-operator/db-operator/pkg/helpers/proxy"
-	"github.com/db-operator/db-operator/pkg/utils/templates"
+	"github.com/db-operator/db-operator/pkg/helpers/templates"
+	"github.com/db-operator/db-operator/pkg/utils/database"
+	"github.com/db-operator/db-operator/pkg/utils/kci"
+	"github.com/db-operator/db-operator/pkg/utils/proxy"
 	secTemplates "github.com/db-operator/db-operator/pkg/utils/templates"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -53,13 +54,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-func boolToFloat64(b bool) float64 {
-	if b {
-		return 1
-	}
-	return 0
-}
 
 // DatabaseReconciler reconciles a Database object
 type DatabaseReconciler struct {
