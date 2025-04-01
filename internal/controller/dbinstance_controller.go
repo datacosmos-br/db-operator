@@ -24,11 +24,13 @@ import (
 
 	kindav1beta1 "github.com/db-operator/db-operator/api/v1beta1"
 	"github.com/db-operator/db-operator/pkg/config"
-	"github.com/db-operator/db-operator/pkg/helpers/backend"
 	commonhelper "github.com/db-operator/db-operator/pkg/helpers/common"
 	kubehelper "github.com/db-operator/db-operator/pkg/helpers/kube"
-	"github.com/db-operator/db-operator/pkg/helpers/proxy"
 	proxyhelper "github.com/db-operator/db-operator/pkg/helpers/proxy"
+	"github.com/db-operator/db-operator/pkg/utils/database"
+	"github.com/db-operator/db-operator/pkg/utils/dbinstance"
+	"github.com/db-operator/db-operator/pkg/utils/kci"
+	"github.com/db-operator/db-operator/pkg/utils/proxy"
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -167,11 +169,7 @@ func (r *DbInstanceReconciler) create(ctx context.Context, dbin *kindav1beta1.Db
 		return err
 	}
 
-	dbBackend := backend.DbBackend{
-		Client:     r.Client,
-		KubeHelper: r.kubeHelper,
-	}
-	instance, err := dbBackend.GetInstance(ctx, dbin, cred)
+	backend, err := dbin.GetBackendType()
 	if err != nil {
 		return err
 	}
@@ -308,7 +306,6 @@ func (r *DbInstanceReconciler) createProxy(ctx context.Context, dbin *kindav1bet
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			// if resource already exists, update
-			log.Info("proxy deployment already exists, updating", "DeploymentName", deploy.Name)
 			err = r.Update(ctx, deploy)
 			if err != nil {
 				log.Error(err, "failed to update proxy deployment")
@@ -331,8 +328,7 @@ func (r *DbInstanceReconciler) createProxy(ctx context.Context, dbin *kindav1bet
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			// if resource already exists, update
-			log.Info("proxy service already exists, patching", "ServiceName", svc.Name)
-			patch := client.MergeFrom(svc.DeepCopy())
+			patch := client.MergeFrom(svc)
 			err = r.Patch(ctx, svc, patch)
 			if err != nil {
 				log.Error(err, "failed to patch proxy service")
