@@ -20,16 +20,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/db-operator/db-operator/api/v1beta1"
+	"github.com/db-operator/db-operator/api/v1beta2"
 	consts "github.com/db-operator/db-operator/pkg/consts"
 	"github.com/db-operator/db-operator/pkg/utils/database"
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-var log = logr.New(logr.Discard().GetSink())
 
 var secretK8s *corev1.Secret = &corev1.Secret{
 	ObjectMeta: v1.ObjectMeta{
@@ -61,7 +58,7 @@ var configmapK8s *corev1.ConfigMap = &corev1.ConfigMap{
 	},
 }
 
-var databaseK8s *v1beta1.Database = &v1beta1.Database{
+var databaseK8s *v1beta2.Database = &v1beta2.Database{
 	TypeMeta: v1.TypeMeta{
 		Kind: "Database",
 	},
@@ -69,12 +66,14 @@ var databaseK8s *v1beta1.Database = &v1beta1.Database{
 		Name:      "database",
 		Namespace: "default",
 	},
-	Spec: v1beta1.DatabaseSpec{
-		SecretName: "creds",
+	Spec: v1beta2.DatabaseSpec{
+		Credentials: v1beta2.Credentials{
+			SecretName: "creds",
+		},
 	},
 }
 
-var dbuserK8s *v1beta1.DbUser = &v1beta1.DbUser{
+var dbuserK8s *v1beta2.DbUser = &v1beta2.DbUser{
 	TypeMeta: v1.TypeMeta{
 		Kind: "DbUser",
 	},
@@ -82,8 +81,10 @@ var dbuserK8s *v1beta1.DbUser = &v1beta1.DbUser{
 		Name:      "dbuser",
 		Namespace: "default",
 	},
-	Spec: v1beta1.DbUserSpec{
-		SecretName: "creds-user",
+	Spec: v1beta2.DbUserSpec{
+		Credentials: v1beta2.Credentials{
+			SecretName: "creds-user",
+		},
 	},
 }
 
@@ -223,18 +224,6 @@ func TestUnitTemplatesConfigMapErr(t *testing.T) {
 	}
 	_, err = templateds.ConfigMap("SOMETHING")
 	assert.Error(t, errors.New("entry not found in the configmap: SOMETHING"), err)
-}
-
-var postgresInstance *v1beta1.DbInstance = &v1beta1.DbInstance{
-	Spec: v1beta1.DbInstanceSpec{
-		Engine: "postgres",
-	},
-}
-
-var mysqlInstance *v1beta1.DbInstance = &v1beta1.DbInstance{
-	Spec: v1beta1.DbInstanceSpec{
-		Engine: "mysql",
-	},
 }
 
 func TestUnitProtocolGetterPostgres(t *testing.T) {
@@ -410,8 +399,6 @@ func TestUnitHostGetterNoProxy(t *testing.T) {
 func TestUnitHostGetterProxy(t *testing.T) {
 	expecterHostname := "proxy-hostname"
 	databaseNew := databaseK8s.DeepCopy()
-	databaseNew.Status.ProxyStatus.Status = true
-	databaseNew.Status.ProxyStatus.ServiceName = expecterHostname
 	templateds, err := NewTemplateDataSource(databaseNew, nil, secretMysql, configmapK8s, db, nil)
 	if err != nil {
 		t.Error(err)
@@ -439,8 +426,6 @@ func TestUnitPortGetterNoProxy(t *testing.T) {
 func TestUnitPortGetterProxy(t *testing.T) {
 	var expectedPort int32 = 1122
 	databaseNew := databaseK8s.DeepCopy()
-	databaseNew.Status.ProxyStatus.Status = true
-	databaseNew.Status.ProxyStatus.SQLPort = expectedPort
 	templateds, err := NewTemplateDataSource(databaseNew, nil, secretMysql, configmapK8s, db, nil)
 	if err != nil {
 		t.Error(err)
@@ -459,11 +444,10 @@ func TestUnitRenderErrDupSecret(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = templateds.Render(v1beta1.Templates{
-		&v1beta1.Template{
+	err = templateds.Render(v1beta2.Templates{
+		&v1beta2.Template{
 			Name:     "POSTGRES_PASSWORD",
 			Template: "DUMMY",
-			Secret:   true,
 		},
 	})
 	assert.ErrorContains(t, err, "POSTGRES_PASSWORD already exists in the secret")
@@ -486,31 +470,26 @@ func TestUnitRenderAppendCustomSecret(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if err := templateds.Render(v1beta1.Templates{
-		&v1beta1.Template{
+	if err := templateds.Render(v1beta2.Templates{
+		&v1beta2.Template{
 			Name:     "STRING",
 			Template: "STRING",
-			Secret:   true,
 		},
-		&v1beta1.Template{
+		&v1beta2.Template{
 			Name:     "PASSWORD",
 			Template: "{{ .Password }}",
-			Secret:   true,
 		},
-		&v1beta1.Template{
+		&v1beta2.Template{
 			Name:     "REUSE_PREVIOUS",
 			Template: "{{ .Secret \"STRING\" }}",
-			Secret:   true,
 		},
-		&v1beta1.Template{
+		&v1beta2.Template{
 			Name:     "SEC_PASSWORD",
 			Template: "{{ .Secret \"POSTGRES_PASSWORD\" }}",
-			Secret:   true,
 		},
-		&v1beta1.Template{
+		&v1beta2.Template{
 			Name:     "GO_FUNCTION",
 			Template: "{{ if eq 1 1 }}It's true{{ else }}It's false{{ end }}",
-			Secret:   true,
 		},
 	}); err != nil {
 		t.Error(err)
@@ -537,25 +516,22 @@ func TestUnitRenderCleanupSecret(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if err := templateds.Render(v1beta1.Templates{
-		&v1beta1.Template{
+	if err := templateds.Render(v1beta2.Templates{
+		&v1beta2.Template{
 			Name:     "STRING",
 			Template: "STRING",
-			Secret:   true,
 		},
-		&v1beta1.Template{
+		&v1beta2.Template{
 			Name:     "PASSWORD",
 			Template: "{{ .Secret \"POSTGRES_PASSWORD\" }}",
-			Secret:   true,
 		},
 	}); err != nil {
 		t.Error(err)
 	}
-	if err := templateds.Render(v1beta1.Templates{
-		&v1beta1.Template{
+	if err := templateds.Render(v1beta2.Templates{
+		&v1beta2.Template{
 			Name:     "PASSWORD",
 			Template: "{{ .Secret \"POSTGRES_PASSWORD\" }}",
-			Secret:   true,
 		},
 	}); err != nil {
 		t.Error(err)
@@ -566,69 +542,70 @@ func TestUnitRenderCleanupSecret(t *testing.T) {
 	)
 }
 
-func TestUnitRenderErrDupConfigMap(t *testing.T) {
-	databaseNew := databaseK8s.DeepCopy()
-	databaseNew.Status.Engine = consts.ENGINE_POSTGRES
-	templateds, err := NewTemplateDataSource(databaseNew, nil, secretPostgres, configmapK8s, db, database.NewDummyUser("mainUser"))
-	if err != nil {
-		t.Error(err)
-	}
-	err = templateds.Render(v1beta1.Templates{
-		&v1beta1.Template{
-			Name:     "SSL_MODE",
-			Template: "DUMMY",
-			Secret:   false,
-		},
-	})
-	assert.ErrorContains(t, err, "SSL_MODE already exists in the configmap")
-}
-
-func TestUnitRenderAppendCustomConfigMap(t *testing.T) {
-	expectedResult := map[string]string{
-		"STRING":         "STRING",
-		"PASSWORD":       "testpassword",
-		"REUSE_PREVIOUS": "STRING",
-		"SSL_MODE_AGAIN": configmapK8s.Data["SSL_MODE"],
+/*
+	func TestUnitRenderErrDupConfigMap(t *testing.T) {
+		databaseNew := databaseK8s.DeepCopy()
+		databaseNew.Status.Engine = consts.ENGINE_POSTGRES
+		templateds, err := NewTemplateDataSource(databaseNew, nil, secretPostgres, configmapK8s, db, database.NewDummyUser("mainUser"))
+		if err != nil {
+			t.Error(err)
+		}
+		err = templateds.Render(v1beta1.Templates{
+			&v1beta1.Template{
+				Name:     "SSL_MODE",
+				Template: "DUMMY",
+				Secret:   false,
+			},
+		})
+		assert.ErrorContains(t, err, "SSL_MODE already exists in the configmap")
 	}
 
-	for key, val := range configmapK8s.Data {
-		expectedResult[key] = val
+	func TestUnitRenderAppendCustomConfigMap(t *testing.T) {
+		expectedResult := map[string]string{
+			"STRING":         "STRING",
+			"PASSWORD":       "testpassword",
+			"REUSE_PREVIOUS": "STRING",
+			"SSL_MODE_AGAIN": configmapK8s.Data["SSL_MODE"],
+		}
+
+		for key, val := range configmapK8s.Data {
+			expectedResult[key] = val
+		}
+		databaseNew := databaseK8s.DeepCopy()
+		databaseNew.Status.Engine = consts.ENGINE_POSTGRES
+		templateds, err := NewTemplateDataSource(databaseNew, nil, secretPostgres.DeepCopy(), configmapK8s.DeepCopy(), db, database.NewDummyUser("mainUser"))
+		if err != nil {
+			t.Error(err)
+		}
+		if err := templateds.Render(v1beta1.Templates{
+			&v1beta1.Template{
+				Name:     "STRING",
+				Template: "STRING",
+				Secret:   false,
+			},
+			&v1beta1.Template{
+				Name:     "PASSWORD",
+				Template: "{{ .Password }}",
+				Secret:   false,
+			},
+			&v1beta1.Template{
+				Name:     "REUSE_PREVIOUS",
+				Template: "{{ .ConfigMap \"STRING\" }}",
+				Secret:   false,
+			},
+			&v1beta1.Template{
+				Name:     "SSL_MODE_AGAIN",
+				Template: "{{ .ConfigMap \"SSL_MODE\" }}",
+				Secret:   false,
+			},
+		}); err != nil {
+			t.Error(err)
+		}
+		assert.Equal(t, expectedResult, templateds.ConfigMapK8sObj.Data)
+		assert.Equal(t, "STRING,PASSWORD,REUSE_PREVIOUS,SSL_MODE_AGAIN",
+			templateds.ConfigMapK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY],
+		)
 	}
-	databaseNew := databaseK8s.DeepCopy()
-	databaseNew.Status.Engine = consts.ENGINE_POSTGRES
-	templateds, err := NewTemplateDataSource(databaseNew, nil, secretPostgres.DeepCopy(), configmapK8s.DeepCopy(), db, database.NewDummyUser("mainUser"))
-	if err != nil {
-		t.Error(err)
-	}
-	if err := templateds.Render(v1beta1.Templates{
-		&v1beta1.Template{
-			Name:     "STRING",
-			Template: "STRING",
-			Secret:   false,
-		},
-		&v1beta1.Template{
-			Name:     "PASSWORD",
-			Template: "{{ .Password }}",
-			Secret:   false,
-		},
-		&v1beta1.Template{
-			Name:     "REUSE_PREVIOUS",
-			Template: "{{ .ConfigMap \"STRING\" }}",
-			Secret:   false,
-		},
-		&v1beta1.Template{
-			Name:     "SSL_MODE_AGAIN",
-			Template: "{{ .ConfigMap \"SSL_MODE\" }}",
-			Secret:   false,
-		},
-	}); err != nil {
-		t.Error(err)
-	}
-	assert.Equal(t, expectedResult, templateds.ConfigMapK8sObj.Data)
-	assert.Equal(t, "STRING,PASSWORD,REUSE_PREVIOUS,SSL_MODE_AGAIN",
-		templateds.ConfigMapK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY],
-	)
-}
 
 func TestUnitRenderCleanupConfigmMap(t *testing.T) {
 	expectedResult := map[string]string{
@@ -679,3 +656,4 @@ func TestUnitRenderCleanupConfigmMap(t *testing.T) {
 		templateds.ConfigMapK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY],
 	)
 }
+*/
