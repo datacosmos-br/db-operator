@@ -47,16 +47,17 @@ func (r *DbInstance) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/mutate-kinda-rocks-v1beta1-dbinstance,mutating=true,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbinstances,verbs=create;update,versions=v1beta1,name=mdbinstance.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &DbInstance{}
+var _ webhook.CustomDefaulter = &DbInstance{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *DbInstance) Default() {
+func (r *DbInstance) Default(ctx context.Context, obj runtime.Object) error {
 	dbinstancelog.Info("default", "name", r.Name)
+	return nil
 }
 
 //+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta1-dbinstance,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbinstances,verbs=create;update,versions=v1beta1,name=vdbinstance.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &DbInstance{}
+var _ webhook.CustomValidator = &DbInstance{}
 
 func TestAllowedPrivileges(privileges []string) error {
 	for _, privilege := range privileges {
@@ -68,7 +69,7 @@ func TestAllowedPrivileges(privileges []string) error {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
+func (r *DbInstance) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	if err := TestAllowedPrivileges(r.Spec.AllowedPrivileges); err != nil {
 		return nil, err
 	}
@@ -90,7 +91,7 @@ func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *DbInstance) ValidateUpdate(ctx context.Context, obj runtime.Object, old runtime.Object) (admission.Warnings, error) {
 	if err := TestAllowedPrivileges(r.Spec.AllowedPrivileges); err != nil {
 		return nil, err
 	}
@@ -153,7 +154,7 @@ func ValidateEngine(engine string) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateDelete() (admission.Warnings, error) {
+func (r *DbInstance) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	dbinstancelog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
