@@ -27,7 +27,7 @@ import (
 	"github.com/db-operator/db-operator/api/v1beta1"
 	"github.com/db-operator/db-operator/pkg/consts"
 	"github.com/db-operator/db-operator/pkg/types"
-	"github.com/db-operator/db-operator/pkg/utils/database"
+	"github.com/db-operator/db-operator/pkg/helpers/database"
 	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/utils/strings/slices"

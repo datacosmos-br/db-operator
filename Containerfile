@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM registry.hub.docker.com/library/golang:1.22.2-alpine3.18 AS builder
+FROM --platform=$BUILDPLATFORM registry.hub.docker.com/library/golang:1.24-alpine AS builder
 
 ARG OPERATOR_VERSION=1.0.0-dev
 
@@ -20,7 +20,8 @@ RUN GOOS=linux GOARCH=$TARGETARCH CGO_ENABLED=0 \
   -ldflags="-X \"github.com/db-operator/db-operator/internal/helpers/common.OperatorVersion=$OPERATOR_VERSION\"" \
   -tags build -o /usr/local/bin/db-operator cmd/main.go
 
-FROM registry.hub.docker.com/library/alpine:3.18
+  
+FROM registry.hub.docker.com/library/alpine:latest
 RUN uname -a
 LABEL org.opencontainers.image.authors="Nikolai Rodionov<allanger@badhouseplants.net>"
 

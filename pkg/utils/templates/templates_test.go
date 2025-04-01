@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/db-operator/db-operator/api/v1beta1"
-	"github.com/db-operator/db-operator/internal/utils/templates"
+	"github.com/db-operator/db-operator/pkg/utils/templates"
 	consts "github.com/db-operator/db-operator/pkg/consts"
 	"github.com/db-operator/db-operator/pkg/utils/database"
 	"github.com/go-logr/logr"

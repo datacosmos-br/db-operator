@@ -6,7 +6,7 @@ import (
 
 	"github.com/db-operator/db-operator/api/v1beta1"
 	kindav1beta1 "github.com/db-operator/db-operator/api/v1beta1"
-	"github.com/db-operator/db-operator/internal/helpers/kube"
+	"github.com/db-operator/db-operator/pkg/helpers/kube"
 	"github.com/db-operator/db-operator/pkg/utils/database"
 	"github.com/db-operator/db-operator/pkg/utils/dbinstance"
 	"sigs.k8s.io/controller-runtime/pkg/client"

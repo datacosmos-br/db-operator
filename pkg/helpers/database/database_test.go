@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"testing"
 
-	dbhelper "github.com/db-operator/db-operator/internal/helpers/database"
-	"github.com/db-operator/db-operator/internal/utils/testutils"
 	"github.com/db-operator/db-operator/pkg/consts"
+	dbhelper "github.com/db-operator/db-operator/pkg/helpers/database"
 	"github.com/db-operator/db-operator/pkg/utils/database"
 	"github.com/db-operator/db-operator/pkg/utils/templates"
+	"github.com/db-operator/db-operator/pkg/utils/testutils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
