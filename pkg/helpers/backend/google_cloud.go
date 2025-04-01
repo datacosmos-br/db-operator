@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/db-operator/db-operator/api/v1beta1"
-	kubehelper "github.com/db-operator/db-operator/internal/helpers/kube"
+	kubehelper "github.com/db-operator/db-operator/pkg/helpers/kube"
 	"github.com/db-operator/db-operator/pkg/utils/database"
 	"github.com/db-operator/db-operator/pkg/utils/dbinstance"
 	"github.com/db-operator/db-operator/pkg/utils/kci"

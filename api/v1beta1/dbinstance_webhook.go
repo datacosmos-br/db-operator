@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/db-operator/db-operator/internal/helpers/kube"
 	"github.com/db-operator/db-operator/pkg/consts"
+	"github.com/db-operator/db-operator/pkg/helpers/kube"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/strings/slices"
 	ctrl "sigs.k8s.io/controller-runtime"

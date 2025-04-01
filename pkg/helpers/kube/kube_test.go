@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	kindav1beta1 "github.com/db-operator/db-operator/api/v1beta1"
-	"github.com/db-operator/db-operator/internal/helpers/kube"
 	"github.com/db-operator/db-operator/pkg/consts"
+	"github.com/db-operator/db-operator/pkg/helpers/kube"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

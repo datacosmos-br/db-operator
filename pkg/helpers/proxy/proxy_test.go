@@ -22,10 +22,10 @@ import (
 
 	"bou.ke/monkey"
 	kindav1beta1 "github.com/db-operator/db-operator/api/v1beta1"
-	proxyhelper "github.com/db-operator/db-operator/internal/helpers/proxy"
-	"github.com/db-operator/db-operator/internal/utils/testutils"
 	"github.com/db-operator/db-operator/pkg/config"
+	proxyhelper "github.com/db-operator/db-operator/pkg/helpers/proxy"
 	"github.com/db-operator/db-operator/pkg/utils/proxy"
+	"github.com/db-operator/db-operator/pkg/utils/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
