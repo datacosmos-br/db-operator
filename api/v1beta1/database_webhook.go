@@ -50,10 +50,10 @@ const (
 	DEFAULT_TEMPLATE_NAME  = "CONNECTION_STRING"
 )
 
-var _ webhook.Defaulter = &Database{}
+var _ webhook.CustomDefaulter = &Database{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Database) Default() {
+// Default implements webhook.CustomDefaulter so a webhook will be registered for the type
+func (r *Database) Default(ctx context.Context, obj runtime.Object) error {
 	databaselog.Info("default", "name", r.Name)
 	if len(r.Spec.SecretsTemplates) == 0 && len(r.Spec.Credentials.Templates) == 0 {
 		r.Spec.Credentials = Credentials{
@@ -66,14 +66,15 @@ func (r *Database) Default() {
 			},
 		}
 	}
+	return nil
 }
 
 //+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta1-database,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=databases,verbs=create;update,versions=v1beta1,name=vdatabase.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Database{}
+var _ webhook.CustomValidator = &Database{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Database) ValidateCreate() (admission.Warnings, error) {
+func (r *Database) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	databaselog.Info("validate create", "name", r.Name)
 
 	if r.Spec.SecretsTemplates != nil && r.Spec.Credentials.Templates != nil {
@@ -103,7 +104,7 @@ func (r *Database) ValidateCreate() (admission.Warnings, error) {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *Database) ValidateUpdate(ctx context.Context, obj runtime.Object, old runtime.Object) (admission.Warnings, error) {
 	databaselog.Info("validate update", "name", r.Name)
 
 	if r.Spec.SecretsTemplates != nil && r.Spec.Credentials.Templates != nil {
@@ -167,7 +168,7 @@ func ValidateSecretTemplates(templates map[string]string) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Database) ValidateDelete() (admission.Warnings, error) {
+func (r *Database) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	databaselog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.

@@ -43,10 +43,10 @@ func (r *DbUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta1-dbuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbusers,verbs=create;update,versions=v1beta1,name=vdbuser.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &DbUser{}
+var _ webhook.CustomValidator = &DbUser{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *DbUser) ValidateCreate() (admission.Warnings, error) {
+func (r *DbUser) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	warnings := []string{}
 	if r.Spec.DatabaseRef != "" && len(r.Spec.DatabaseRefs) > 0 {
 		return nil, fmt.Errorf("cannot specify both databaseRef and databaseRefs")
@@ -69,7 +69,6 @@ func (r *DbUser) ValidateCreate() (admission.Warnings, error) {
 		return nil, err
 	}
 
-	ctx := context.Background()
 	cl, err := client.New(ctrl.GetConfigOrDie(), client.Options{})
 	if err != nil {
 		return nil, err
@@ -92,7 +91,7 @@ func TestExtraPrivileges(privileges []string) error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *DbUser) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *DbUser) ValidateUpdate(ctx context.Context, obj runtime.Object, old runtime.Object) (admission.Warnings, error) {
 	warnings := []string{}
 	dbuserlog.Info("validate update", "name", r.Name)
 
@@ -140,7 +139,7 @@ func (r *DbUser) ValidateUpdate(old runtime.Object) (admission.Warnings, error) 
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *DbUser) ValidateDelete() (admission.Warnings, error) {
+func (r *DbUser) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	dbuserlog.Info("validate delete", "name", r.Name)
 	return nil, nil
 }
