@@ -16,7 +16,5 @@
 
 package database
 
-// Compile-time assertion: ClickHouse must satisfy the Database interface.
-// If the interface changes in the upstream and ClickHouse no longer implements
-// it, this will produce a build error instead of a silent runtime failure.
-var _ Database = ClickHouse{}
+// Compile-time check that ClickHouse implements the Database interface.
+var _ Database = (*ClickHouse)(nil)

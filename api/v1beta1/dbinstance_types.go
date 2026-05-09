@@ -17,15 +17,10 @@
 package v1beta1
 
 import (
-	"context"
 	"errors"
-	"fmt"
 
-	"github.com/db-operator/db-operator/v2/api/common"
-	"github.com/db-operator/db-operator/v2/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -40,17 +35,21 @@ type DbInstanceSpec struct {
 	SSLConnection   DbInstanceSSLConnection `json:"sslConnection,omitempty"`
 	// A list of privileges that are allowed to be set as Dbuser's extra privileges
 	AllowedPrivileges []string `json:"allowedPrivileges,omitempty"`
-	DbInstanceSource  `json:",inline"`
+	// If set to true, extra grants are enabled on the databases
+	// making it possible to provide access to any user on the database instance
+	AllowExtraGrants bool `json:"allowExtraGrants,omitempty"`
+	// InstanceVars can be used by any database/dbuser that are deployed
+	// to this instance to build templated credentials with some generic values.
+	// Can be used for example to provide a read only postgres replica url
+	InstanceVars     map[string]string `json:"instanceVars,omitempty"`
+	DbInstanceSource `json:",inline"`
 }
 
 // DbInstanceSource represents the source of an instance.
 // Only one of its members may be specified.
 type DbInstanceSource struct {
-	Google    *GoogleInstance    `json:"google,omitempty" protobuf:"bytes,1,opt,name=google"`
-	Generic   *GenericInstance   `json:"generic,omitempty" protobuf:"bytes,2,opt,name=generic"`
-	OracleOCI *OracleOCIInstance `json:"oracleoci,omitempty" protobuf:"bytes,3,opt,name=oracleoci"`
-	Azure     *AzureInstance     `json:"azure,omitempty" protobuf:"bytes,4,opt,name=azure"`
-	AWS       *AWSInstance       `json:"aws,omitempty" protobuf:"bytes,5,opt,name=aws"`
+	Google  *GoogleInstance  `json:"google,omitempty" protobuf:"bytes,1,opt,name=google"`
+	Generic *GenericInstance `json:"generic,omitempty" protobuf:"bytes,2,opt,name=generic"`
 }
 
 // DbInstanceStatus defines the observed state of DbInstance
@@ -63,32 +62,8 @@ type DbInstanceStatus struct {
 }
 
 // GoogleInstance is used when instance type is Google Cloud SQL
-// and describes necessary informations to use google API to create sql instances
+// and describes necessary information to use google API to create sql instances
 type GoogleInstance struct {
-	InstanceName  string         `json:"instance"`
-	ConfigmapName NamespacedName `json:"configmapRef"`
-	APIEndpoint   string         `json:"apiEndpoint,omitempty"`
-	ClientSecret  NamespacedName `json:"clientSecretRef,omitempty"`
-}
-
-// OracleOCIInstance is used when instance type is Oracle OCI
-type OracleOCIInstance struct {
-	InstanceName  string         `json:"instance"`
-	ConfigmapName NamespacedName `json:"configmapRef"`
-	APIEndpoint   string         `json:"apiEndpoint,omitempty"`
-	ClientSecret  NamespacedName `json:"clientSecretRef,omitempty"`
-}
-
-// AzureInstance is used when instance type is Azure
-type AzureInstance struct {
-	InstanceName  string         `json:"instance"`
-	ConfigmapName NamespacedName `json:"configmapRef"`
-	APIEndpoint   string         `json:"apiEndpoint,omitempty"`
-	ClientSecret  NamespacedName `json:"clientSecretRef,omitempty"`
-}
-
-// AWSInstance is used when instance type is AWS
-type AWSInstance struct {
 	InstanceName  string         `json:"instance"`
 	ConfigmapName NamespacedName `json:"configmapRef"`
 	APIEndpoint   string         `json:"apiEndpoint,omitempty"`
@@ -107,16 +82,34 @@ type BackendServer struct {
 // and describes necessary information to use instance
 // generic instance can be any backend, it must be reachable by described address and port
 type GenericInstance struct {
-	Host         string          `json:"host,omitempty"`
-	HostFrom     *common.FromRef `json:"hostFrom,omitempty"`
-	Port         uint16          `json:"port,omitempty"`
-	PortFrom     *common.FromRef `json:"portFrom,omitempty"`
-	PublicIP     string          `json:"publicIp,omitempty"`
-	PublicIPFrom *common.FromRef `json:"publicIpFrom,omitempty"`
+	Host         string   `json:"host,omitempty"`
+	HostFrom     *FromRef `json:"hostFrom,omitempty"`
+	Port         uint16   `json:"port,omitempty"`
+	PortFrom     *FromRef `json:"portFrom,omitempty"`
+	PublicIP     string   `json:"publicIp,omitempty"`
+	PublicIPFrom *FromRef `json:"publicIpFrom,omitempty"`
 	// BackupHost address will be used for dumping database for backup
 	// Usually secondary address for primary-secondary setup or cluster lb address
 	// If it's not defined, above Host will be used as backup host address.
 	BackupHost string `json:"backupHost,omitempty"`
+}
+
+type FromRef struct {
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Key       string `json:"key"`
+}
+
+func (fr *FromRef) ToKubernetesType() k8stypes.NamespacedName {
+	if fr == nil {
+		return k8stypes.NamespacedName{}
+	}
+
+	return k8stypes.NamespacedName{
+		Name:      fr.Name,
+		Namespace: fr.Namespace,
+	}
 }
 
 // DbInstanceBackup defines name of google bucket to use for storing database dumps for backup when backup is enabled
@@ -141,6 +134,7 @@ type DbInstanceSSLConnection struct {
 //+kubebuilder:resource:scope=Cluster,shortName=dbin
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`,description="current phase"
 //+kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`,description="health status"
+// +kubebuilder:storageversion
 
 // DbInstance is the Schema for the dbinstances API
 type DbInstance struct {
@@ -166,29 +160,11 @@ func init() {
 
 // ValidateEngine checks if defined engine by DbInstance object is supported by db-operator
 func (dbin *DbInstance) ValidateEngine() error {
-	if (dbin.Spec.Engine == "mysql") || (dbin.Spec.Engine == "postgres") ||
-		(dbin.Spec.Engine == "mongodb") || (dbin.Spec.Engine == "clickhouse") ||
-		(dbin.Spec.Engine == "oracle") || (dbin.Spec.Engine == "sqlserver") {
+	if (dbin.Spec.Engine == "mysql") || (dbin.Spec.Engine == "postgres") || (dbin.Spec.Engine == "clickhouse") {
 		return nil
 	}
 
 	return errors.New("not supported engine type")
-}
-
-// ValidateExistingDatabase checks if there's an existing database for the same instance in any namespace
-func (dbin *DbInstance) ValidateExistingDatabase(ctx context.Context, c client.Client) error {
-	var dbList DbInstanceList
-	if err := c.List(ctx, &dbList); err != nil {
-		return err
-	}
-
-	for _, db := range dbList.Items {
-		if db.Spec.AdminUserSecret == dbin.Spec.AdminUserSecret && db.Name != dbin.Name {
-			return fmt.Errorf("a database for instance %s already exists in namespace %s", dbin.Spec.AdminUserSecret, db.Namespace)
-		}
-	}
-
-	return nil
 }
 
 // ValidateBackend checks if backend type of instance is defined properly
@@ -197,9 +173,7 @@ func (dbin *DbInstance) ValidateExistingDatabase(ctx context.Context, c client.C
 func (dbin *DbInstance) ValidateBackend() error {
 	source := dbin.Spec.DbInstanceSource
 
-	if source.Google == nil && source.Generic == nil &&
-		source.OracleOCI == nil && source.Azure == nil &&
-		source.AWS == nil {
+	if (source.Google == nil) && (source.Generic == nil) {
 		return errors.New("no instance type defined")
 	}
 
@@ -210,18 +184,6 @@ func (dbin *DbInstance) ValidateBackend() error {
 	}
 
 	if source.Generic != nil {
-		numSources++
-	}
-
-	if source.OracleOCI != nil {
-		numSources++
-	}
-
-	if source.Azure != nil {
-		numSources++
-	}
-
-	if source.AWS != nil {
 		numSources++
 	}
 
@@ -244,18 +206,6 @@ func (dbin *DbInstance) GetBackendType() (string, error) {
 
 	if source.Google != nil {
 		return "google", nil
-	}
-
-	if source.OracleOCI != nil {
-		return "oracleoci", nil
-	}
-
-	if source.Azure != nil {
-		return "azure", nil
-	}
-
-	if source.AWS != nil {
-		return "aws", nil
 	}
 
 	if source.Generic != nil {
@@ -284,61 +234,6 @@ func (dbin *DbInstance) GetSecretName() string {
 	return ""
 }
 
-// Function to mark the DbInstance as a hub
-func (db *DbInstance) Hub() {}
-
-// ConvertTo converts this v1beta1 to v1beta2. (upgrade)
-func (dbin *DbInstance) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta2.DbInstance)
-	dst.ObjectMeta = dbin.ObjectMeta
-	dst.Spec.AdminCredentials = &v1beta2.AdminCredentials{
-		UsernameFrom: &common.FromRef{
-			Kind:      "Secret",
-			Name:      dbin.Spec.AdminUserSecret.Name,
-			Namespace: dbin.Spec.AdminUserSecret.Namespace,
-			Key:       "user",
-		},
-		PasswordFrom: &common.FromRef{
-			Kind:      "Secret",
-			Name:      dbin.Spec.AdminUserSecret.Name,
-			Namespace: dbin.Spec.AdminUserSecret.Namespace,
-			Key:       "password",
-		},
-	}
-	dst.Spec.AllowedPrivileges = dbin.Spec.AllowedPrivileges
-	dst.Spec.SSLConnection = v1beta2.DbInstanceSSLConnection(dbin.Spec.SSLConnection)
-	if dbin.Spec.DbInstanceSource.Generic != nil {
-		dst.Spec.InstanceData = &v1beta2.InstanceData{
-			Host: dbin.Spec.Generic.Host,
-			Port: dbin.Spec.Generic.Port,
-		}
-	} else if dbin.Spec.DbInstanceSource.Google != nil {
-		return errors.New("google instances are not supported anymore, please conside migrating to other tools for providing them. E.g crossplane")
-	}
-	dst.Spec.Engine = v1beta2.Engine(dbin.Spec.Engine)
-	return nil
-}
-
-// ConvertFrom converts from the Hub version (v1beta2) to (v1beta1). (downgrade)
-func (dst *DbInstance) ConvertFrom(srcRaw conversion.Hub) error {
-	dbin := srcRaw.(*v1beta2.DbInstance)
-	dst.ObjectMeta = dbin.ObjectMeta
-	dst.Spec.AdminUserSecret = NamespacedName{
-		Namespace: dbin.Spec.AdminCredentials.UsernameFrom.Namespace,
-		Name:      dbin.Spec.AdminCredentials.UsernameFrom.Name,
-	}
-	dst.Spec.SSLConnection = DbInstanceSSLConnection(dbin.Spec.SSLConnection)
-	dst.Spec.Backup = DbInstanceBackup{}
-	dst.Spec.DbInstanceSource.Generic = &GenericInstance{
-		Host:         dbin.Spec.InstanceData.Host,
-		HostFrom:     (*common.FromRef)(dbin.Spec.InstanceData.HostFrom),
-		Port:         dbin.Spec.InstanceData.Port,
-		PortFrom:     (*common.FromRef)(dbin.Spec.InstanceData.PortFrom),
-		PublicIP:     "",
-		PublicIPFrom: nil,
-		BackupHost:   "",
-	}
-	dst.Spec.AllowedPrivileges = dbin.Spec.AllowedPrivileges
-	dst.Spec.Engine = string(dbin.Spec.Engine)
-	return nil
+func (db *DbInstance) Hub() {
+	// Function to mark the DbInstance as a hub
 }

@@ -63,20 +63,6 @@ func (ch ClickHouse) executeExec(ctx context.Context, database, query string, ad
 	return err
 }
 
-func (ch ClickHouse) execAsUser(ctx context.Context, query string, user *DatabaseUser) error {
-	log := log.FromContext(ctx)
-	db, err := ch.getDbConn(ch.Database, user.Username, user.Password)
-	if err != nil {
-		log.Error(err, "failed to open a db connection")
-		return err
-	}
-
-	defer db.Close()
-	_, err = db.Exec(query)
-
-	return err
-}
-
 func (ch ClickHouse) isDbExist(ctx context.Context, admin *DatabaseUser) bool {
 	check := fmt.Sprintf("SELECT name FROM system.databases WHERE name = '%s'", ch.Database)
 
@@ -183,10 +169,8 @@ func (ch ClickHouse) createDatabase(ctx context.Context, admin *DatabaseUser) er
 	var create string
 
 	if ch.ClusterName != "" {
-		// Create database on cluster
 		create = fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s` ON CLUSTER '%s'", ch.Database, ch.ClusterName)
 	} else {
-		// Create standalone database
 		create = fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", ch.Database)
 	}
 
@@ -285,6 +269,10 @@ func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser,
 
 func (ch ClickHouse) revokePermissions(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
+	if !ch.isUserExist(ctx, admin, user) {
+		return nil
+	}
+
 	revoke := fmt.Sprintf("REVOKE ALL ON `%s`.* FROM '%s'", ch.Database, user.Username)
 
 	if ch.ClusterName != "" {
@@ -297,6 +285,20 @@ func (ch ClickHouse) revokePermissions(ctx context.Context, admin *DatabaseUser,
 	}
 
 	return nil
+}
+
+func (ch ClickHouse) execAsUser(ctx context.Context, query string, user *DatabaseUser) error {
+	log := log.FromContext(ctx)
+	db, err := ch.getDbConn(ch.Database, user.Username, user.Password)
+	if err != nil {
+		log.Error(err, "failed to open a db connection")
+		return err
+	}
+
+	defer db.Close()
+	_, err = db.Exec(query)
+
+	return err
 }
 
 func (ch ClickHouse) deleteUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {

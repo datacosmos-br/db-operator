@@ -57,6 +57,13 @@ func makeInterface(in *Generic) (database.Database, error) {
 			SkipCAVerify: in.SkipCAVerify,
 		}
 		return db, nil
+	case "clickhouse":
+		db := database.ClickHouse{
+			Host:     in.Host,
+			Port:     in.Port,
+			Database: "default",
+		}
+		return db, nil
 	default:
 		return nil, errors.New("not supported engine type")
 	}
