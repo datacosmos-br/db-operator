@@ -1,0 +1,52 @@
+internal/helpers/database/database.go
+  s_177790736bb8d7::t_22b8ef46bfe367 154-172
+  s_177790736bb8d7::t_380f6ad3195fe0 213-219
+  s_177790736bb8d7::t_54b59e20c40140 96-102
+internal/controller/database_secret_handler_test.go
+  h_5cf852cc46bf92 1-23,25-29,31-70,78
+  s_1e31d5fc44111b::t_f6ad180cc6df4d 24,30,71-77
+api/v1beta1/dbinstance_types.go
+  s_177790736bb8d7::t_f3670b05da6b84 146
+internal/helpers/database/database_test.go
+  h_5cf852cc46bf92 24,30,54-68,112-154,323-340
+internal/controller/database_secret_handler.go
+  s_1e31d5fc44111b::t_11684f8aa0ee70 49-51,53,55-59,61-63,65-66,68-69,71-72,74-75,77,79-84,86-89,91-117,127-128,131-135,138-144
+  s_1e31d5fc44111b::t_b4143b79f4d1f7 64,67,73
+  h_5cf852cc46bf92 24,44-47,120-124,126,149,153,157,163,168,191,205
+internal/controller/dbuser_controller_helpers_test.go
+  s_1e31d5fc44111b::t_f5cb617376704a 108-125
+  h_5cf852cc46bf92 1-7,9-42,57-62,66-107
+  s_1e31d5fc44111b::t_00e199d7184b41 8,43-56,63-65
+internal/controller/dbuser_controller.go
+  s_177790736bb8d7::t_fec9ef84c7e5e9 228
+  s_177790736bb8d7::t_c31bf8519cda8d 344-362
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "1a30e974d4aef40d33ff3d6e83b453f16c49b94b",
+  "prompts": {},
+  "humans": {
+    "h_5cf852cc46bf92": {
+      "author": "FLEXT Bot <team@flext.sh>"
+    }
+  },
+  "sessions": {
+    "s_177790736bb8d7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a94f82f9-0316-455c-9e25-e7bdaf02c664",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    },
+    "s_1e31d5fc44111b": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "868ee30f-1be8-4c22-af2b-04e7f96c0832",
+        "model": "unknown"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    }
+  }
+}
