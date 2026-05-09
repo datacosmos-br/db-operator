@@ -458,8 +458,8 @@ func TestUnitRenderHTML(t *testing.T) {
 		t.Error(err)
 	}
 	expectedResult := []byte("<div>")
-	err = templateds.Render(v1beta1.Templates{
-		&v1beta1.Template{
+	err = templateds.Render(v1beta2.Templates{
+		&v1beta2.Template{
 			Name:     "HTML_TEST",
 			Template: "<div>",
 			Secret:   true,

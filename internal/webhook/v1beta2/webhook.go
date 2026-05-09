@@ -18,15 +18,17 @@
 package v1beta2
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
-
 	"slices"
+
+	kindarocksv1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
 )
 
 var (
 	helpers          []string = []string{"Protocol", "Hostname", "Port", "Password", "Username", "Password", "Database"}
-	allowedFunctions []string = []string{"Secret", "ConfigMap", "Query"}
+	allowedFunctions []string = []string{"Secret", "ConfigMap", "Query", "InstanceVar"}
 )
 
 // Make sure that credentials.templates are correct
@@ -34,8 +36,14 @@ var (
 //
 // the second argument: cmAllowed. It should be set to false when
 // validation is called by dbuser_webhook.
-func ValidateTemplates(templates Templates) error {
+func ValidateTemplates(templates kindarocksv1beta2.Templates, cmAllowed bool) error {
 	for _, template := range templates {
+		if !cmAllowed {
+			if !template.Secret {
+				err := errors.New("ConfigMap templating is not allowed for that kind. Please set .secret to true")
+				return err
+			}
+		}
 		// This regexp is getting fields from mustache templates so then they can be compared to allowed fields
 		reg := "{{\\s*\\.([\\w\\.]+)\\s*(.*?)\\s*}}"
 		r, _ := regexp.Compile(reg)
@@ -52,6 +60,23 @@ func ValidateTemplates(templates Templates) error {
 			}
 			if !validFunctionArg(field[2]) {
 				err := fmt.Errorf("%s is invalid: Functions arguments must be not empty and wrapped in quotes, example: {{ .Secret \\\"PASSWORD\\\" }}", template.Name)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func ValidateSecretTemplates(templates map[string]string) error {
+	for _, template := range templates {
+		allowedFields := []string{".Protocol", ".DatabaseHost", ".DatabasePort", ".UserName", ".Password", ".DatabaseName"}
+		// This regexp is getting fields from mustache templates so then they can be compared to allowed fields
+		reg := "{{\\s*([\\w\\.]+)\\s*}}"
+		r, _ := regexp.Compile(reg)
+		fields := r.FindAllStringSubmatch(template, -1)
+		for _, field := range fields {
+			if !slices.Contains(allowedFields, field[1]) {
+				err := fmt.Errorf("%v is a field that is not allowed for templating, please use one of these: %v", field[1], allowedFields)
 				return err
 			}
 		}

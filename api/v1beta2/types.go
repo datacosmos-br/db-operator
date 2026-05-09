@@ -17,10 +17,11 @@
 
 package v1beta2
 
-// Tempaltes to add custom entries to ConfigMaps and Secrets
+// Templates to add custom entries to ConfigMaps and Secrets
 type Template struct {
 	Name     string `json:"name"`
 	Template string `json:"template"`
+	Secret   bool   `json:"secret"`
 }
 
 type Templates []*Template
@@ -37,5 +38,5 @@ type Credentials struct {
 	Templates Templates `json:"templates,omitempty"`
 }
 
-// +kubebuilder:validation:Enum:=postgres;mysql
+// +kubebuilder:validation:Enum:=postgres;mysql;clickhouse
 type Engine string
