@@ -368,10 +368,6 @@ spec:
           spec:
             description: DatabaseSpec defines the desired state of Database
             properties:
-              allowedNamespaces:
-                items:
-                  type: string
-                type: array
               backup:
                 description: DatabaseBackup defines the desired state of backup and
                   schedule
@@ -386,29 +382,6 @@ spec:
                 type: object
               cleanup:
                 type: boolean
-              clickhouse:
-                description: Clickhouse struct should be used to provide resource
-                  that only applicable to Clickhouse
-                properties:
-                  clusterName:
-                    type: string
-                  engine:
-                    description: Engine type for the ClickHouse database (e.g., MergeTree,
-                      ReplicatedMergeTree)
-                    type: string
-                  replicationFactor:
-                    description: Replication factor for tables
-                    type: integer
-                  settings:
-                    additionalProperties:
-                      type: string
-                    description: Additional settings that might be necessary for ClickHouse
-                      configuration
-                    type: object
-                  shard:
-                    description: Shard name for distributed tables
-                    type: string
-                type: object
               credentials:
                 description: Credentials should be used to setup everything relates
                   to k8s secrets and configmaps
@@ -459,8 +432,6 @@ spec:
                       type: object
                     type: array
                 type: object
-              database:
-                type: string
               deletionProtected:
                 type: boolean
               existingUser:
@@ -483,30 +454,6 @@ spec:
                 type: array
               instance:
                 type: string
-              mongodb:
-                description: MongoDB struct should be used to provide resource that
-                  only applicable to MongoDB
-                properties:
-                  collections:
-                    items:
-                      type: string
-                    type: array
-                  sharding:
-                    type: boolean
-                type: object
-              oracle:
-                description: Oracle struct should be used to provide resource that
-                  only applicable to Oracle
-                properties:
-                  profiles:
-                    items:
-                      type: string
-                    type: array
-                  tablespaces:
-                    items:
-                      type: string
-                    type: array
-                type: object
               postgres:
                 description: Postgres struct should be used to provide resource that
                   only applicable to postgres
@@ -535,21 +482,6 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
-              sqlserver:
-                description: SQLServer struct should be used to provide resource that
-                  only applicable to SQLServer
-                properties:
-                  roles:
-                    items:
-                      type: string
-                    type: array
-                  schemas:
-                    items:
-                      type: string
-                    type: array
-                type: object
-              user:
-                type: string
             required:
             - backup
             - deletionProtected
@@ -600,154 +532,6 @@ spec:
                 description: |-
                   Important: Run "make generate" to regenerate code after modifying this file
                   Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
-                type: boolean
-              user:
-                type: string
-            required:
-            - database
-            - engine
-            - status
-            - user
-            type: object
-        type: object
-    served: true
-    storage: false
-    subresources:
-      status: {}
-  - additionalPrinterColumns:
-    - description: current db status
-      jsonPath: .status.status
-      name: Status
-      type: boolean
-    - description: If database is protected to not get deleted.
-      jsonPath: .spec.deletionProtected
-      name: Protected
-      type: boolean
-    - description: instance reference
-      jsonPath: .spec.instance
-      name: DBInstance
-      type: string
-    - description: db-operator version of last full reconcile
-      jsonPath: .status.operatorVersion
-      name: OperatorVersion
-      type: string
-    - description: time since creation of resource
-      jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1beta2
-    schema:
-      openAPIV3Schema:
-        description: Database is the Schema for the databases API
-        properties:
-          apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-            type: string
-          kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: DatabaseSpec defines the desired state of Database
-            properties:
-              credentials:
-                description: Mysql             Mysql       `json:"mysql,omitempty"`
-                properties:
-                  secretName:
-                    description: A secret with database credentials
-                    type: string
-                  setOwnerReference:
-                    description: |-
-                      When set to true, a secret with credentials will have
-                      an owner reference of a Database CR. That means that once
-                      a Database is removed, the secret will follow
-                    type: boolean
-                  templates:
-                    description: Templates to add custom entries to ConfigMaps and
-                      Secrets
-                    items:
-                      description: Tempaltes to add custom entries to ConfigMaps and
-                        Secrets
-                      properties:
-                        name:
-                          type: string
-                        template:
-                          type: string
-                      required:
-                      - name
-                      - template
-                      type: object
-                    type: array
-                required:
-                - secretName
-                - setOwnerReference
-                type: object
-              deletionProtected:
-                description: |-
-                  If set to true, db-operator won't remove the database on the server
-                  when the Database resource is removed from Kubernetes
-                type: boolean
-              instance:
-                description: A name of the DbInstance to which this Database should
-                  be assigned
-                type: string
-              postgres:
-                description: Postgres struct should be used to provide resource that
-                  only applicable to postgres
-                properties:
-                  dropPublicSchema:
-                    description: If set to true, the public schema will be dropped
-                      after the database creation
-                    type: boolean
-                  extensions:
-                    items:
-                      type: string
-                    type: array
-                  params:
-                    description: Define params for database creation
-                    properties:
-                      template:
-                        description: |-
-                          The name of the template from which to create the new database, or DEFAULT to use the default template (template1).
-                          (Only create)
-                        type: string
-                    type: object
-                  schemas:
-                    description: Specify schemas to be created. The user created by
-                      db-operator will have all access on them.
-                    items:
-                      type: string
-                    type: array
-                type: object
-            required:
-            - deletionProtected
-            - instance
-            type: object
-          status:
-            description: DatabaseStatus defines the observed state of Database
-            properties:
-              database:
-                type: string
-              engine:
-                enum:
-                - postgres
-                - mysql
-                type: string
-              monitorUserSecret:
-                type: string
-              operatorVersion:
-                type: string
-              status:
                 type: boolean
               user:
                 type: string

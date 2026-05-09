@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	kindarocksv1beta1 "github.com/db-operator/db-operator/v2/api/v1beta1"
-	"github.com/db-operator/db-operator/v2/pkg/helpers/kube"
+	"github.com/db-operator/db-operator/v2/internal/helpers/kube"
 	"github.com/db-operator/db-operator/v2/pkg/consts"
 )
 

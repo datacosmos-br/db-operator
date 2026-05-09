@@ -18,6 +18,8 @@ package main
 
 import (
 	"flag"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
@@ -29,8 +31,8 @@ import (
 
 	kindarocksv1alpha1 "github.com/db-operator/db-operator/v2/api/v1alpha1"
 	kindarocksv1beta1 "github.com/db-operator/db-operator/v2/api/v1beta1"
-	kindarocksv1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
 	controllers "github.com/db-operator/db-operator/v2/internal/controller"
+	webhookv1beta1 "github.com/db-operator/db-operator/v2/internal/webhook/v1beta1"
 	"github.com/db-operator/db-operator/v2/pkg/config"
 	"github.com/db-operator/db-operator/v2/pkg/utils/thirdpartyapi"
 
@@ -53,7 +55,6 @@ func init() {
 
 	utilruntime.Must(kindarocksv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kindarocksv1beta1.AddToScheme(scheme))
-	utilruntime.Must(kindarocksv1beta2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 
 	thirdpartyapi.AppendToScheme(scheme)
@@ -65,22 +66,35 @@ func main() {
 	var enableLeaderElection bool
 	var checkForChanges bool
 	var isWebhook bool
+	var enableProfiler bool
+	var enableDevLogging bool
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":60000", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&checkForChanges, "check-for-changes", false,
-		"Enabling this will make the operator only reconcile when k8s objects were changed (currently used only by dbuser crd).")
+		"Enabling this will make the operator only reconcile when k8s objects were changed (currently used only by dbuser and database controllers).")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&isWebhook, "webhook", false, "Starts the webhook server when set.")
+	flag.BoolVar(&enableProfiler, "enable-profiler", false, "If true, db-operator will start with a profiler on port 54321.")
+	flag.BoolVar(&enableDevLogging, "dev-logging", false, "If true, sets the zap development mode.")
 	opts := zap.Options{
-		Development: true,
+		Development: enableDevLogging,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 	webhookSrv := webhook.NewServer(webhook.Options{
 		Port: 9443,
 	})
+	if enableProfiler {
+		setupLog.Info("Enabling profiler", "port", "54321")
+		go func() {
+			if err := http.ListenAndServe("localhost:54321", nil); err != nil {
+				setupLog.Error(err, "Couldn't start profiler")
+				os.Exit(1)
+			}
+		}()
+	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
@@ -100,23 +114,27 @@ func main() {
 	if isWebhook {
 		setupLog.Info("Starting webhook server")
 
-		if err = (&kindarocksv1beta2.Database{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Database")
+		// nolint:goconst
+		if err := webhookv1beta1.SetupDatabaseWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "database")
 			os.Exit(1)
 		}
-		if err = (&kindarocksv1beta2.DbInstance{}).SetupWebhookWithManager(mgr); err != nil {
+		// nolint:goconst
+		if err := webhookv1beta1.SetupDbInstanceWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "DbInstance")
 			os.Exit(1)
 		}
-		if err = (&kindarocksv1beta2.DbUser{}).SetupWebhookWithManager(mgr); err != nil {
+		// nolint:goconst
+		if err := webhookv1beta1.SetupDbUserWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "DbUser")
 			os.Exit(1)
 		}
+
 	} else {
 		setupLog.Info("Starting controller")
 		conf, err := config.LoadConfig()
 		if err != nil {
-			setupLog.Error(err, "an error occured when reading the config")
+			setupLog.Error(err, "an error occurred when reading the config")
 			os.Exit(1)
 		}
 
@@ -132,7 +150,7 @@ func main() {
 			Log:      ctrl.Log.WithName("controllers").WithName("DbInstance"),
 			Scheme:   mgr.GetScheme(),
 			Interval: time.Duration(i),
-			Recorder: mgr.GetEventRecorderFor("dbinstance-controller"),
+			Recorder: mgr.GetEventRecorder("dbinstance-controller"),
 			Conf:     conf,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "DbInstance")
@@ -147,7 +165,7 @@ func main() {
 			Client:          mgr.GetClient(),
 			Log:             ctrl.Log.WithName("controllers").WithName("Database"),
 			Scheme:          mgr.GetScheme(),
-			Recorder:        mgr.GetEventRecorderFor("database-controller"),
+			Recorder:        mgr.GetEventRecorder("database-controller"),
 			Interval:        time.Duration(i),
 			Conf:            conf,
 			WatchNamespaces: namespaces,
@@ -160,7 +178,7 @@ func main() {
 		if err = (&controllers.DbUserReconciler{
 			Client:       mgr.GetClient(),
 			Scheme:       mgr.GetScheme(),
-			Recorder:     mgr.GetEventRecorderFor("dbuser-controller"),
+			Recorder:     mgr.GetEventRecorder("dbuser-controller"),
 			Interval:     time.Duration(i),
 			CheckChanges: checkForChanges,
 		}).SetupWithManager(mgr); err != nil {
