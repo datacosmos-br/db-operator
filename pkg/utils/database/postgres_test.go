@@ -37,6 +37,7 @@ func testPostgres() (*Postgres, *DatabaseUser) {
 	}
 
 	return &Postgres{
+			Backend:          "local",
 			Host:             test.GetPostgresHost(),
 			Port:             test.GetPostgresPort(),
 			Database:         "testdb",

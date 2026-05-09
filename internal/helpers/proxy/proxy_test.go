@@ -23,6 +23,7 @@ import (
 	"bou.ke/monkey"
 	kindav1beta1 "github.com/db-operator/db-operator/v2/api/v1beta1"
 	proxyhelper "github.com/db-operator/db-operator/v2/internal/helpers/proxy"
+	"github.com/db-operator/db-operator/v2/internal/utils/testutils"
 	"github.com/db-operator/db-operator/v2/pkg/config"
 	"github.com/db-operator/db-operator/v2/pkg/utils/proxy"
 	"github.com/stretchr/testify/assert"
@@ -66,15 +67,10 @@ func mockOperatorNamespace() (string, error) {
 	return "operator", nil
 }
 
-func makePostgresTestDbCr(instanceRef kindav1beta1.DbInstance) *kindav1beta1.Database {
-	_ = instanceRef
-	return &kindav1beta1.Database{}
-}
-
 func TestUnitDetermineProxyTypeForDBGoogleBackend(t *testing.T) {
 	config := &config.Config{}
 	dbin := makeGsqlInstance()
-	db := makePostgresTestDbCr(dbin)
+	db := testutils.NewPostgresTestDbCr(dbin)
 	dbProxy, err := proxyhelper.DetermineProxyTypeForDB(t.Context(), config, db, &dbin)
 	assert.NoError(t, err)
 	cloudProxy, ok := dbProxy.(*proxy.CloudProxy)
@@ -85,7 +81,7 @@ func TestUnitDetermineProxyTypeForDBGoogleBackend(t *testing.T) {
 func TestUnitDetermineProxyTypeForDBGenericBackend(t *testing.T) {
 	config := &config.Config{}
 	dbin := makeGenericInstance()
-	db := makePostgresTestDbCr(dbin)
+	db := testutils.NewPostgresTestDbCr(dbin)
 	_, err := proxyhelper.DetermineProxyTypeForDB(t.Context(), config, db, &dbin)
 	assert.Error(t, err)
 }
