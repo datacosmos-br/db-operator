@@ -109,7 +109,7 @@ func (kh *KubeHelper) Create(ctx context.Context, obj client.Object) (client.Obj
 	}
 	// Return an updated object already
 	// I'm not sure how to make it better
-	var refreshedObj client.Object = obj.DeepCopyObject().(client.Object)
+	refreshedObj := obj.DeepCopyObject().(client.Object)
 	if err := kh.Cli.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, refreshedObj); err != nil {
 		ctrllog.Log.Error(err, "couldn't get object", "kind", obj.GetObjectKind().GroupVersionKind().Kind, "name", obj.GetName())
 		return nil, err

@@ -71,7 +71,7 @@ func (e *secretEventHandler) Update(ctx context.Context, evt event.TypedUpdateEv
 
 		// send Database Reconcile Request
 		dbcr := &kindav1beta1.Database{}
-		if err := e.Client.Get(ctx, types.NamespacedName{Namespace: secretNew.GetNamespace(), Name: dbcrName}, dbcr); err != nil {
+		if err := e.Get(ctx, types.NamespacedName{Namespace: secretNew.GetNamespace(), Name: dbcrName}, dbcr); err != nil {
 			log.Error(err, "couldn't get the database resource", "namespace", secretNew.GetNamespace(), "name", dbcrName)
 			return
 		}
@@ -198,7 +198,7 @@ func isObjectUpdated(e event.UpdateEvent) bool {
 	secretNew, isSecret := e.ObjectNew.(*corev1.Secret)
 	if isSecret {
 		// only labeled secrets are watched
-		labels := secretNew.ObjectMeta.GetLabels()
+		labels := secretNew.GetLabels()
 		dbcrName, ok := labels[consts.USED_BY_NAME_LABEL_KEY]
 		if !ok {
 			return false // no label found

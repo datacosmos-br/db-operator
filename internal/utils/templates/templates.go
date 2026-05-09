@@ -66,10 +66,10 @@ func (tds *TemplateDataSources) Render(templates v1beta2.Templates) error {
 	}
 	cleanUpData(tds.SecretK8sObj.Data, lastAppliedSecret, currentTemplatesSec)
 
-	tds.SecretK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY] = strings.Join(currentTemplatesSec, ",")
+	tds.SecretK8sObj.Annotations[consts.TEMPLATE_ANNOTATION_KEY] = strings.Join(currentTemplatesSec, ",")
 
-	if len(tds.SecretK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY]) == 0 {
-		delete(tds.SecretK8sObj.ObjectMeta.Annotations, consts.TEMPLATE_ANNOTATION_KEY)
+	if len(tds.SecretK8sObj.Annotations[consts.TEMPLATE_ANNOTATION_KEY]) == 0 {
+		delete(tds.SecretK8sObj.Annotations, consts.TEMPLATE_ANNOTATION_KEY)
 	}
 
 	return nil
@@ -160,11 +160,11 @@ func NewTemplateDataSource(
 		return nil, fmt.Errorf("configmap %s doesn't belong to the database %s", secretK8s.Name, databaseK8s.Name)
 	}
 
-	if configmapK8s.ObjectMeta.Annotations == nil {
-		configmapK8s.ObjectMeta.Annotations = make(map[string]string)
+	if configmapK8s.Annotations == nil {
+		configmapK8s.Annotations = make(map[string]string)
 	}
-	if secretK8s.ObjectMeta.Annotations == nil {
-		secretK8s.ObjectMeta.Annotations = make(map[string]string)
+	if secretK8s.Annotations == nil {
+		secretK8s.Annotations = make(map[string]string)
 	}
 
 	if extraTemplateVars == nil {

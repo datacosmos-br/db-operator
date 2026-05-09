@@ -29,7 +29,7 @@ import (
 var OperatorVersion string
 
 func IsDBChanged(dbcr *kindav1beta2.Database, databaseSecret *corev1.Secret) bool {
-	annotations := dbcr.ObjectMeta.GetAnnotations()
+	annotations := dbcr.GetAnnotations()
 
 	hash := kci.GenerateChecksum(dbcr.Spec)
 	return annotations["checksum/spec"] != hash ||
@@ -37,7 +37,7 @@ func IsDBChanged(dbcr *kindav1beta2.Database, databaseSecret *corev1.Secret) boo
 }
 
 func AddDBChecksum(dbcr *kindav1beta2.Database, databaseSecret *corev1.Secret) {
-	annotations := dbcr.ObjectMeta.GetAnnotations()
+	annotations := dbcr.GetAnnotations()
 	if len(annotations) == 0 {
 		annotations = make(map[string]string)
 	}

@@ -315,7 +315,7 @@ func (r *DatabaseReconciler) handleDbCreateOrUpdate(ctx context.Context, dbcr *k
 
 func (r *DatabaseReconciler) handleDbDelete(ctx context.Context, dbcr *kindav1beta2.Database) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
-	var phase string = dbPhaseDelete
+	phase := dbPhaseDelete
 	r.Recorder.Event(dbcr, "Normal", phase, "Deleting database")
 	reconcilePeriod := r.Interval * time.Second
 	reconcileResult := reconcile.Result{RequeueAfter: reconcilePeriod}
@@ -323,12 +323,12 @@ func (r *DatabaseReconciler) handleDbDelete(ctx context.Context, dbcr *kindav1be
 	// Run finalization logic for database. If the
 	// finalization logic fails, don't remove the finalizer so
 	// that we can retry during the next reconciliation.
-	if commonhelper.SliceContainsSubString(dbcr.ObjectMeta.Finalizers, "dbuser.") {
+	if commonhelper.SliceContainsSubString(dbcr.Finalizers, "dbuser.") {
 		err := errors.New("database can't be removed, while there are DbUser referencing it")
 		return r.manageError(ctx, dbcr, err, true, phase)
 	}
 
-	if commonhelper.ContainsString(dbcr.ObjectMeta.Finalizers, "db."+dbcr.Name) {
+	if commonhelper.ContainsString(dbcr.Finalizers, "db."+dbcr.Name) {
 		err := r.deleteDatabase(ctx, dbcr)
 		if err != nil {
 			log.Error(err, "failed deleting database")
