@@ -31,8 +31,8 @@ import (
 
 	kindarocksv1alpha1 "github.com/db-operator/db-operator/v2/api/v1alpha1"
 	kindarocksv1beta1 "github.com/db-operator/db-operator/v2/api/v1beta1"
+	kindarocksv1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
 	controllers "github.com/db-operator/db-operator/v2/internal/controller"
-	webhookv1beta1 "github.com/db-operator/db-operator/v2/internal/webhook/v1beta1"
 	"github.com/db-operator/db-operator/v2/pkg/config"
 	"github.com/db-operator/db-operator/v2/pkg/utils/thirdpartyapi"
 
@@ -55,6 +55,7 @@ func init() {
 
 	utilruntime.Must(kindarocksv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kindarocksv1beta1.AddToScheme(scheme))
+	utilruntime.Must(kindarocksv1beta2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 
 	thirdpartyapi.AppendToScheme(scheme)
@@ -114,18 +115,15 @@ func main() {
 	if isWebhook {
 		setupLog.Info("Starting webhook server")
 
-		// nolint:goconst
-		if err := webhookv1beta1.SetupDatabaseWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "database")
+		if err = (&kindarocksv1beta2.Database{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Database")
 			os.Exit(1)
 		}
-		// nolint:goconst
-		if err := webhookv1beta1.SetupDbInstanceWebhookWithManager(mgr); err != nil {
+		if err = (&kindarocksv1beta2.DbInstance{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "DbInstance")
 			os.Exit(1)
 		}
-		// nolint:goconst
-		if err := webhookv1beta1.SetupDbUserWebhookWithManager(mgr); err != nil {
+		if err = (&kindarocksv1beta2.DbUser{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "DbUser")
 			os.Exit(1)
 		}
@@ -150,7 +148,7 @@ func main() {
 			Log:      ctrl.Log.WithName("controllers").WithName("DbInstance"),
 			Scheme:   mgr.GetScheme(),
 			Interval: time.Duration(i),
-			Recorder: mgr.GetEventRecorder("dbinstance-controller"),
+			Recorder: mgr.GetEventRecorderFor("dbinstance-controller"),
 			Conf:     conf,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "DbInstance")
@@ -165,7 +163,7 @@ func main() {
 			Client:          mgr.GetClient(),
 			Log:             ctrl.Log.WithName("controllers").WithName("Database"),
 			Scheme:          mgr.GetScheme(),
-			Recorder:        mgr.GetEventRecorder("database-controller"),
+			Recorder:        mgr.GetEventRecorderFor("database-controller"),
 			Interval:        time.Duration(i),
 			Conf:            conf,
 			WatchNamespaces: namespaces,
@@ -178,7 +176,7 @@ func main() {
 		if err = (&controllers.DbUserReconciler{
 			Client:       mgr.GetClient(),
 			Scheme:       mgr.GetScheme(),
-			Recorder:     mgr.GetEventRecorder("dbuser-controller"),
+			Recorder:     mgr.GetEventRecorderFor("dbuser-controller"),
 			Interval:     time.Duration(i),
 			CheckChanges: checkForChanges,
 		}).SetupWithManager(mgr); err != nil {

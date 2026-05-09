@@ -30,16 +30,15 @@ type DatabaseSpec struct {
 	Instance string `json:"instance"`
 	// If set to true, db-operator won't remove the database on the server
 	// when the Database resource is removed from Kubernetes
-	DeletionProtected bool       `json:"deletionProtected"`
-	Postgres          Postgres   `json:"postgres,omitempty"`
-	Clickhouse        Clickhouse `json:"clickhouse,omitempty"`
+	DeletionProtected bool     `json:"deletionProtected"`
+	Postgres          Postgres `json:"postgres,omitempty"`
 	// Mysql             Mysql       `json:"mysql,omitempty"`
+	Clickhouse  Clickhouse  `json:"clickhouse,omitempty"`
 	Credentials Credentials `json:"credentials,omitempty"`
 }
 
-// Clickhouse struct should be used to provide resource that only applicable to ClickHouse
+// Clickhouse struct should be used to provide resource that only applicable to clickhouse
 type Clickhouse struct {
-	// ClusterName is the name of the ClickHouse cluster (used for ON CLUSTER queries)
 	ClusterName string `json:"clusterName,omitempty"`
 }
 
