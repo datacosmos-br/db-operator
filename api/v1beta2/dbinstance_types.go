@@ -34,6 +34,10 @@ type DbInstanceSpec struct {
 	// A connection data for the db-operator to find the server
 	// It's immutable, if a dbinstance has Status.Connected = true
 	InstanceData *InstanceData `json:"instanceData"`
+	// InstanceVars can be used by any database/dbuser that are deployed
+	// to the operator instance and refer to current dbinstance.
+	// They are propagated to the templating engine via the InstanceVar function.
+	InstanceVars map[string]string `json:"instanceVars,omitempty"`
 }
 
 // InstanceData is used when instance type is generic

@@ -1,25 +1,33 @@
-package v1beta1_test
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package v1beta2_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/db-operator/db-operator/v2/api/common"
-	"github.com/db-operator/db-operator/v2/api/v1beta1"
-	webhook "github.com/db-operator/db-operator/v2/internal/webhook/v1beta1"
+	"github.com/db-operator/db-operator/v2/api/v1beta2"
+	webhook "github.com/db-operator/db-operator/v2/internal/webhook/v1beta2"
 	"github.com/db-operator/db-operator/v2/pkg/consts"
 	"github.com/stretchr/testify/assert"
 )
 
-/*
-	TODO: I've moved all the tests to one file while fixing errors
-	      produced by breaking changes in the controller runtime
-				Once we have a new API version, the tests will be moved
-				there with a proper format
-*/
 // Common tests
 func TestUnitTemplatesValidator(t *testing.T) {
-	validTemplates := v1beta1.Templates{
+	validTemplates := v1beta2.Templates{
 		{Name: "TEMPLATE_1", Template: "{{ .Protocol }} {{ .Hostname }} {{ .Port }} {{ .Username }} {{ .Password }} {{ .Database }}"},
 		{Name: "TEMPLATE_2", Template: "{{.Protocol }}"},
 		{Name: "TEMPLATE_3", Template: "{{.Protocol }}"},
@@ -35,7 +43,7 @@ func TestUnitTemplatesValidator(t *testing.T) {
 	err := webhook.ValidateTemplates(validTemplates, true)
 	assert.NoErrorf(t, err, "expected no error %v", err)
 
-	invalidTemplates := v1beta1.Templates{
+	invalidTemplates := v1beta2.Templates{
 		{Name: "TEMPLATE_1", Template: "{{ .InvalidField }}"},
 		{Name: "TEMPLATE_2", Template: "{{ .Secret invalid }}"},
 		{Name: "TEMPLATE_3", Template: "{{ .Secret }}"},
@@ -44,7 +52,7 @@ func TestUnitTemplatesValidator(t *testing.T) {
 	err = webhook.ValidateTemplates(invalidTemplates, true)
 	assert.Errorf(t, err, "should get error %v", err)
 
-	cmTemplates := v1beta1.Templates{
+	cmTemplates := v1beta2.Templates{
 		{Name: "TEMPLATE_1", Template: "configmap template", Secret: false},
 	}
 
@@ -107,12 +115,14 @@ func TestExtraPrivileges(t *testing.T) {
 }
 
 // DbInstance Tests
-
 func TestUnitEngineValid(t *testing.T) {
 	err := webhook.ValidateEngine("postgres")
 	assert.NoError(t, err)
 
 	err = webhook.ValidateEngine("mysql")
+	assert.NoError(t, err)
+
+	err = webhook.ValidateEngine("clickhouse")
 	assert.NoError(t, err)
 }
 
@@ -127,10 +137,9 @@ func TestValidateFromSecret(t *testing.T) {
 		Name: "name",
 		Key:  "key",
 	}
-	dbin := &v1beta1.GenericInstance{
-		HostFrom:     from,
-		PortFrom:     from,
-		PublicIPFrom: from,
+	dbin := &v1beta2.InstanceData{
+		HostFrom: from,
+		PortFrom: from,
 	}
 	assert.NoError(t, webhook.ValidateConfigFrom(dbin))
 }
@@ -141,10 +150,9 @@ func TestValidateFromCM(t *testing.T) {
 		Name: "name",
 		Key:  "key",
 	}
-	dbin := &v1beta1.GenericInstance{
-		HostFrom:     from,
-		PortFrom:     from,
-		PublicIPFrom: from,
+	dbin := &v1beta2.InstanceData{
+		HostFrom: from,
+		PortFrom: from,
 	}
 	assert.NoError(t, webhook.ValidateConfigFrom(dbin))
 }
@@ -155,16 +163,15 @@ func TestValidateFromUnknown(t *testing.T) {
 		Name: "name",
 		Key:  "key",
 	}
-	dbin := &v1beta1.GenericInstance{
-		HostFrom:     from,
-		PortFrom:     from,
-		PublicIPFrom: from,
+	dbin := &v1beta2.InstanceData{
+		HostFrom: from,
+		PortFrom: from,
 	}
 	assert.Error(t, webhook.ValidateConfigFrom(dbin))
 }
 
 func TestUnitConfigHostErr(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
+	spec := &v1beta2.InstanceData{
 		Host: "host",
 		HostFrom: &common.FromRef{
 			Kind: "ConfigMap",
@@ -176,14 +183,14 @@ func TestUnitConfigHostErr(t *testing.T) {
 }
 
 func TestUnitConfigHostVal(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
+	spec := &v1beta2.InstanceData{
 		Host: "host",
 	}
 	assert.NoError(t, webhook.ValidateConfigVsConfigFrom(spec))
 }
 
 func TestUnitConfigHostFrom(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
+	spec := &v1beta2.InstanceData{
 		HostFrom: &common.FromRef{
 			Kind: "ConfigMap",
 			Name: "name",
@@ -194,7 +201,7 @@ func TestUnitConfigHostFrom(t *testing.T) {
 }
 
 func TestUnitConfigPortErr(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
+	spec := &v1beta2.InstanceData{
 		Port: 5432,
 		PortFrom: &common.FromRef{
 			Kind: "ConfigMap",
@@ -206,45 +213,15 @@ func TestUnitConfigPortErr(t *testing.T) {
 }
 
 func TestUnitConfigPortVal(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
+	spec := &v1beta2.InstanceData{
 		Port: 5432,
 	}
 	assert.NoError(t, webhook.ValidateConfigVsConfigFrom(spec))
 }
 
 func TestUnitConfigPortFrom(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
+	spec := &v1beta2.InstanceData{
 		PortFrom: &common.FromRef{
-			Kind: "ConfigMap",
-			Name: "name",
-			Key:  "key",
-		},
-	}
-	assert.NoError(t, webhook.ValidateConfigVsConfigFrom(spec))
-}
-
-func TestUnitConfigPublicIPErr(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
-		PublicIP: "123.123.123.123",
-		PublicIPFrom: &common.FromRef{
-			Kind: "ConfigMap",
-			Name: "name",
-			Key:  "key",
-		},
-	}
-	assert.Error(t, webhook.ValidateConfigVsConfigFrom(spec))
-}
-
-func TestUnitConfigPublicIPVal(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
-		PublicIP: "123.123.123.123",
-	}
-	assert.NoError(t, webhook.ValidateConfigVsConfigFrom(spec))
-}
-
-func TestUnitConfigPublicIPFrom(t *testing.T) {
-	spec := &v1beta1.GenericInstance{
-		PublicIPFrom: &common.FromRef{
 			Kind: "ConfigMap",
 			Name: "name",
 			Key:  "key",

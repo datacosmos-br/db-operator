@@ -17,20 +17,19 @@
 package kci
 
 import (
-	"log"
 	"regexp"
 
 	"github.com/db-operator/can-haz-password/password"
 )
 
 // GeneratePass generates secure password string
-func GeneratePass() string {
+func GeneratePass() (string, error) {
 	generator := password.NewGenerator(newDbPasswordRule())
 	password, err := generator.Generate()
 	if err != nil {
-		log.Fatalf("can not generate password - %s", err)
+		return "", err
 	}
-	return password
+	return password, nil
 }
 
 // Minimum length of 20 characters, maximum length of 30 characters.
@@ -50,7 +49,7 @@ func newDbPasswordRule() *dbPasswordRule {
 func (r *dbPasswordRule) Config() *password.Configuration {
 	return &password.Configuration{
 		Length: 20,
-		CharacterClasses: []password.CharacterClassConfiguration{
+		CharacterClasses: []password.CharacterClassConfiguration{ // codespell:ignore
 			{Characters: password.LowercaseCharacters + password.UppercaseCharacters, Minimum: 10},
 			{Characters: password.DigitCharacters, Minimum: 8},
 			{Characters: password.URLSafeSpecialCharacters, Minimum: 2},

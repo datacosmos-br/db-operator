@@ -162,7 +162,10 @@ func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName str
 		dbName = objectMeta.Namespace + "-" + objectMeta.Name
 	}
 	dbUser := objectMeta.Namespace + "-" + objectMeta.Name
-	dbPassword := kci.GeneratePass()
+	dbPassword, err := kci.GeneratePass()
+	if err != nil {
+		return nil, err
+	}
 
 	switch engine {
 	case "postgres":

@@ -1,6 +1,4 @@
 /*
- * Copyright 2023 DB-Operator Authors
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -24,28 +22,39 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/db-operator/db-operator/v2/internal/helpers/kube"
-	"github.com/db-operator/db-operator/v2/pkg/consts"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	kindarocksv1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/internal/helpers/kube"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
 )
 
+// nolint:unused
 // log is for logging in this package.
 var dbinstancelog = logf.Log.WithName("dbinstance-resource")
 
-func (r *DbInstance) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr, r).
+// SetupDbInstanceWebhookWithManager registers the webhook for DbInstance in the manager.
+func SetupDbInstanceWebhookWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewWebhookManagedBy(mgr, &kindarocksv1beta2.DbInstance{}).
 		WithValidator(&DbInstanceCustomValidator{}).
+		WithDefaulter(&DbInstanceCustomDefaulter{}).
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta2-dbinstance,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbinstances,verbs=create;update,versions=v1beta2,name=vdbinstance.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/mutate-kinda-rocks-v1beta2-dbinstance,mutating=true,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbinstances,verbs=create;update,versions=v1beta2,name=mdbinstance-v1beta2.kb.io,admissionReviewVersions=v1
 
-// DbInstanceCustomValidator implements admission.Validator[*DbInstance].
+type DbInstanceCustomDefaulter struct{}
+
+func (d *DbInstanceCustomDefaulter) Default(_ context.Context, obj *kindarocksv1beta2.DbInstance) error {
+	dbinstancelog.Info("Defaulting for DbInstance", "name", obj.GetName())
+	return nil
+}
+
+// +kubebuilder:webhook:path=/validate-kinda-rocks-v1beta2-dbinstance,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbinstances,verbs=create;update,versions=v1beta2,name=vdbinstance-v1beta2.kb.io,admissionReviewVersions=v1
+
 type DbInstanceCustomValidator struct{}
-
-var _ admission.Validator[*DbInstance] = &DbInstanceCustomValidator{}
 
 func TestAllowedPrivileges(privileges []string) error {
 	for _, privilege := range privileges {
@@ -56,12 +65,13 @@ func TestAllowedPrivileges(privileges []string) error {
 	return nil
 }
 
-func (v *DbInstanceCustomValidator) ValidateCreate(ctx context.Context, obj *DbInstance) (admission.Warnings, error) {
+// ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type DbInstance.
+func (v *DbInstanceCustomValidator) ValidateCreate(_ context.Context, obj *kindarocksv1beta2.DbInstance) (admission.Warnings, error) {
+	dbinstancelog.Info("Validation for DbInstance upon creation", "name", obj.GetName())
+
 	if err := TestAllowedPrivileges(obj.Spec.AllowedPrivileges); err != nil {
 		return nil, err
 	}
-
-	dbinstancelog.Info("validate create", "name", obj.Name)
 	if err := ValidateConfigVsConfigFrom(obj.Spec.InstanceData); err != nil {
 		return nil, err
 	}
@@ -71,8 +81,10 @@ func (v *DbInstanceCustomValidator) ValidateCreate(ctx context.Context, obj *DbI
 	return nil, nil
 }
 
-// ValidateUpdate validates the DbInstance on update.
-func (v *DbInstanceCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *DbInstance) (admission.Warnings, error) {
+// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type DbInstance.
+func (v *DbInstanceCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj *kindarocksv1beta2.DbInstance) (admission.Warnings, error) {
+	dbinstancelog.Info("Validation for DbInstance upon update", "name", newObj.GetName())
+
 	if err := TestAllowedPrivileges(newObj.Spec.AllowedPrivileges); err != nil {
 		return nil, err
 	}
@@ -90,16 +102,21 @@ func (v *DbInstanceCustomValidator) ValidateUpdate(ctx context.Context, oldObj, 
 			}
 		}
 	}
-	dbinstancelog.Info("validate update", "name", newObj.Name)
+
 	immutableErr := "cannot change %s, the field is immutable"
 	if newObj.Spec.Engine != oldObj.Spec.Engine {
 		return nil, fmt.Errorf(immutableErr, "engine")
 	}
-
 	return nil, nil
 }
 
-func ValidateConfigVsConfigFrom(r *InstanceData) error {
+// ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type DbInstance.
+func (v *DbInstanceCustomValidator) ValidateDelete(_ context.Context, obj *kindarocksv1beta2.DbInstance) (admission.Warnings, error) {
+	dbinstancelog.Info("Validation for DbInstance upon deletion", "name", obj.GetName())
+	return nil, nil
+}
+
+func ValidateConfigVsConfigFrom(r *kindarocksv1beta2.InstanceData) error {
 	if r != nil {
 		if len(r.Host) > 0 && r.HostFrom != nil {
 			return errors.New("it's not allowed to use both host and hostFrom, please choose one")
@@ -111,27 +128,26 @@ func ValidateConfigVsConfigFrom(r *InstanceData) error {
 	return nil
 }
 
-func ValidateConfigFrom(dbin *InstanceData) error {
+func ValidateConfigFrom(dbin *kindarocksv1beta2.InstanceData) error {
 	check := dbin.HostFrom
-	if check != nil && !(check.Kind == kube.CONFIGMAP || check.Kind == kube.SECRET) {
+	if check != nil && check.Kind != kube.CONFIGMAP && check.Kind != kube.SECRET {
 		return fmt.Errorf("unsupported kind in hostFrom: %s, please use %s or %s", check.Kind, kube.CONFIGMAP, kube.SECRET)
 	}
 	check = dbin.PortFrom
-	if check != nil && !(check.Kind == kube.CONFIGMAP || check.Kind == kube.SECRET) {
+	if check != nil && check.Kind != kube.CONFIGMAP && check.Kind != kube.SECRET {
 		return fmt.Errorf("unsupported kind in portFrom: %s, please use %s or %s", check.Kind, kube.CONFIGMAP, kube.SECRET)
 	}
 	return nil
 }
 
-func ValidateEngine(engine Engine) error {
-	if !(slices.Contains([]Engine{"postgres", "mysql"}, engine)) {
-		return fmt.Errorf("unsupported engine: %s. please use either postgres or mysql", engine)
+func ValidateEngine(engine kindarocksv1beta2.Engine) error {
+	supported := []kindarocksv1beta2.Engine{
+		kindarocksv1beta2.Engine(consts.ENGINE_POSTGRES),
+		kindarocksv1beta2.Engine(consts.ENGINE_MYSQL),
+		kindarocksv1beta2.Engine(consts.ENGINE_CLICKHOUSE),
+	}
+	if !slices.Contains(supported, engine) {
+		return fmt.Errorf("unsupported engine: %s. please use one of: %v", engine, supported)
 	}
 	return nil
-}
-
-// ValidateDelete validates the DbInstance on deletion.
-func (v *DbInstanceCustomValidator) ValidateDelete(ctx context.Context, obj *DbInstance) (admission.Warnings, error) {
-	dbinstancelog.Info("validate delete", "name", obj.Name)
-	return nil, nil
 }

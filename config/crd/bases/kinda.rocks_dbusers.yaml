@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.1
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: dbusers.kinda.rocks
 spec:
   group: kinda.rocks
@@ -68,13 +68,15 @@ spec:
               cleanup:
                 type: boolean
               credentials:
-                description: Credentials should be used to setup everything relates
-                  to k8s secrets and configmaps
+                description: |-
+                  Credentials should be used to setup everything relates to k8s secrets and configmaps
+                  TODO(@allanger): Field .spec.secretName should be moved here in the v1beta2 version
                 properties:
                   metadata:
                     description: |-
                       Metadata defines additional metadata that should be applied to
                       k8s resources created from credentials configuration.
+
 
                       For Database and DbUser, this metadata is applied to the Secret
                       that stores generated credentials.
@@ -144,6 +146,7 @@ spec:
                   privilege is added
                   By default is set to true
                   Only applies to Postgres, doesn't have any effect on Mysql
+                  TODO: Default should be false, but not to introduce breaking
                         changes it's now set to true. It should be changed in
                         in the next API version
                 type: boolean
@@ -241,15 +244,18 @@ spec:
                     description: Templates to add custom entries to ConfigMaps and
                       Secrets
                     items:
-                      description: Tempaltes to add custom entries to ConfigMaps and
+                      description: Templates to add custom entries to ConfigMaps and
                         Secrets
                       properties:
                         name:
                           type: string
+                        secret:
+                          type: boolean
                         template:
                           type: string
                       required:
                       - name
+                      - secret
                       - template
                       type: object
                     type: array
@@ -268,20 +274,20 @@ spec:
                 items:
                   type: string
                 type: array
-              grantToAdmin:
-                default: false
-                description: |-
-                  Should the user be granted to the admin user
-                  For example, it should be set to true on Azure instance,
-                  because the admin given by them is not a super user,
-                  but should be set to false on AWS, when rds_iam extra
-                  privilege is added
-                  By default is set to true
-                  Only applies to Postgres, doesn't have any effect on Mysql
-                  TODO: Default should be false, but not to introduce breaking
-                        changes it's now set to true. It should be changed in
-                        in the next API version
-                type: boolean
+              postgres:
+                properties:
+                  grantToAdmin:
+                    default: false
+                    description: |-
+                      Should the user be granted to the admin user
+                      For example, it should be set to true on Azure instance,
+                      because the admin given by them is not a super user,
+                      but should be set to false on AWS, when rds_iam extra
+                      privilege is added
+                      By default is set to true
+                      Only applies to Postgres, doesn't have any effect on Mysql
+                    type: boolean
+                type: object
             required:
             - accessType
             - databaseRef
@@ -293,6 +299,8 @@ spec:
                 description: It's required to let the operator update users
                 type: boolean
               database:
+                type: string
+              operatorVersion:
                 type: string
               status:
                 type: boolean
