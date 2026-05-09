@@ -1,0 +1,80 @@
+api/v1beta2/types.go
+  s_177790736bb8d7::t_40f292dd5cb824 20,24
+  s_177790736bb8d7::t_445097eecbc361 41
+internal/webhook/v1beta2/dbinstance_webhook_test.go
+  s_177790736bb8d7::t_dfd85ffbe03182 1-50
+cmd/main.go
+  s_177790736bb8d7::t_b49e582f387961 36
+  s_177790736bb8d7::t_2ace519bb4aa6c 119,123,127
+internal/helpers/database/database.go
+  s_177790736bb8d7::t_9d67f37b0fe109 165-168
+internal/webhook/v1beta2/webhook_unit_test.go
+  s_177790736bb8d7::t_ed59b9c8f44135 1-255
+internal/webhook/v1beta2/webhook.go
+  s_177790736bb8d7::t_1331fcda48ca5f 1-102
+internal/webhook/v1beta2/webhook_suite_test.go
+  s_177790736bb8d7::t_c4897b401301ac 1-147
+config/crd/bases/kinda.rocks_dbusers.yaml
+  s_177790736bb8d7::t_e538c183517bd1 6,71-73,80,149,247,252-253,258,277-290,303
+api/v1beta1/zz_generated.deepcopy.go
+  s_177790736bb8d7::t_e538c183517bd1 23,41-55,554-564
+internal/webhook/v1beta2/database_webhook_test.go
+  s_177790736bb8d7::t_a1ecfeb9b267d3 1-50
+api/v1beta2/zz_generated.deepcopy.go
+  s_177790736bb8d7::t_e538c183517bd1 23,51-65,155,308-314,410,547-560
+api/v1beta2/dbinstance_types.go
+  s_177790736bb8d7::t_ebab4729eceb4e 37-40
+internal/webhook/v1beta2/dbinstance_webhook.go
+  s_177790736bb8d7::t_f703d58d5a748b 1-153
+config/crd/bases/kinda.rocks_databases.yaml
+  s_177790736bb8d7::t_e538c183517bd1 6,385-393,395-397,404,606,608-614,629,634-635,640,698
+config/rbac/role.yaml
+  s_177790736bb8d7::t_e538c183517bd1 8,10,13,20,22-28,31,34,36,39,48-61
+config/webhook/manifests.yaml
+  s_177790736bb8d7::t_e538c183517bd1 13,15,20,27-46,55,99,101,106,121,139,141,146,161
+internal/utils/templates/templates.go
+  s_177790736bb8d7::t_9d60984bf8898f 25
+  s_177790736bb8d7::t_cafab27246e484 170-173,175-181
+  s_177790736bb8d7::t_8ecc981b9669c3 109,117-120,133
+  s_177790736bb8d7::t_e1211b36efeda6 208-216
+config/crd/bases/kinda.rocks_dbinstances.yaml
+  s_177790736bb8d7::t_e538c183517bd1 6,523,571-578,618
+internal/controller/database_controller.go
+  s_177790736bb8d7::t_d03542910d3666 549
+internal/webhook/v1beta2/dbuser_webhook_test.go
+  s_177790736bb8d7::t_9488e592b0c1ca 1-43
+pkg/utils/kci/password.go
+  s_177790736bb8d7::t_b6c5d31a44400c 26,30,32,52
+internal/helpers/kube/kube_suite_test.go
+  s_177790736bb8d7::t_aa08c4e02d1423 38
+  s_177790736bb8d7::t_3fa6e0c6bc742a 101,112,127,140,158,183,200,224,252,267,283,300,309,331,347,363,390,407,421,439,457,474
+internal/controller/dbuser_controller.go
+  s_177790736bb8d7::t_a04a2fef91ec19 407
+internal/webhook/v1beta1/webhook_unit_test.go
+  s_177790736bb8d7::t_0c839a164e1349 7
+  s_177790736bb8d7::t_52d24910a5c927 125,139,153,169,187,199,217,229,247
+internal/utils/templates/templates_test.go
+  s_177790736bb8d7::t_b49ddff9975b86 461-462
+internal/webhook/v1beta2/database_webhook.go
+  s_177790736bb8d7::t_5167faba1797dd 1-111
+go.mod
+  s_177790736bb8d7::t_5f77c17ec5f46f 3-5,8,13,22-24
+internal/webhook/v1beta2/dbuser_webhook.go
+  s_177790736bb8d7::t_a8f1077ddd12fe 1-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "baa3430f740928219ae3ed70c06485edfbaeb154",
+  "prompts": {},
+  "sessions": {
+    "s_177790736bb8d7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a94f82f9-0316-455c-9e25-e7bdaf02c664",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    }
+  }
+}
