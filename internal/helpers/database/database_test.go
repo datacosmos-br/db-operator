@@ -21,11 +21,13 @@ import (
 	"context"
 	"testing"
 
+	kindav1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
 	dbhelper "github.com/db-operator/db-operator/v2/internal/helpers/database"
 	"github.com/db-operator/db-operator/v2/internal/utils/testutils"
 	"github.com/db-operator/db-operator/v2/pkg/consts"
 	"github.com/db-operator/db-operator/v2/pkg/utils/database"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -47,6 +49,21 @@ func TestUnitDeterminMysqlType(t *testing.T) {
 	db, _, _ := dbhelper.FetchDatabaseData(ctx, mysqlDbCr, testDbcred, &instance)
 	_, ok := db.(database.Mysql)
 	assert.Equal(t, ok, true, "expected true")
+}
+
+func TestUnitDeterminClickhouseType(t *testing.T) {
+	clickhouseDbCr := &kindav1beta2.Database{
+		Spec: kindav1beta2.DatabaseSpec{
+			Clickhouse: kindav1beta2.Clickhouse{ClusterName: "cluster-1"},
+		},
+		Status: kindav1beta2.DatabaseStatus{Engine: "clickhouse"},
+	}
+	instance := testutils.NewPostgresTestDbInstanceCr()
+
+	db, _, err := dbhelper.FetchDatabaseData(ctx, clickhouseDbCr, testDbcred, &instance)
+	assert.NoError(t, err)
+	_, ok := db.(database.ClickHouse)
+	assert.True(t, ok, "expected clickhouse database type")
 }
 
 func TestUnitParsePostgresSecretData(t *testing.T) {
@@ -90,6 +107,51 @@ func TestUnitParseMysqlSecretData(t *testing.T) {
 	assert.Equal(t, string(validData["DB"]), cred.Name, "expect same values")
 	assert.Equal(t, string(validData["USER"]), cred.Username, "expect same values")
 	assert.Equal(t, string(validData["PASSWORD"]), cred.Password, "expect same values")
+}
+
+func TestUnitParseClickhouseSecretData(t *testing.T) {
+	clickhouseDbCr := &kindav1beta2.Database{Status: kindav1beta2.DatabaseStatus{Engine: "clickhouse"}}
+
+	invalidData := map[string][]byte{"DB": []byte("testdb")}
+	_, err := dbhelper.ParseDatabaseSecretData(clickhouseDbCr, invalidData)
+	assert.Error(t, err)
+
+	validData := map[string][]byte{
+		consts.CLICKHOUSE_DB:       []byte("testdb"),
+		consts.CLICKHOUSE_USER:     []byte("testuser"),
+		consts.CLICKHOUSE_PASSWORD: []byte("testpassword"),
+	}
+
+	cred, err := dbhelper.ParseDatabaseSecretData(clickhouseDbCr, validData)
+	assert.NoError(t, err)
+	assert.Equal(t, string(validData[consts.CLICKHOUSE_DB]), cred.Name)
+	assert.Equal(t, string(validData[consts.CLICKHOUSE_USER]), cred.Username)
+	assert.Equal(t, string(validData[consts.CLICKHOUSE_PASSWORD]), cred.Password)
+}
+
+func TestUnitGenerateDatabaseSecretData(t *testing.T) {
+	objMeta := metav1.ObjectMeta{Namespace: "team-a", Name: "app-db"}
+
+	postgresData, err := dbhelper.GenerateDatabaseSecretData(objMeta, "postgres", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "team-a-app-db", string(postgresData[consts.POSTGRES_DB]))
+	assert.Equal(t, "team-a-app-db", string(postgresData[consts.POSTGRES_USER]))
+	assert.NotEmpty(t, postgresData[consts.POSTGRES_PASSWORD])
+
+	mysqlData, err := dbhelper.GenerateDatabaseSecretData(objMeta, "mysql", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "team_a_app_db", string(mysqlData[consts.MYSQL_DB]))
+	assert.Equal(t, "team_a_app_db", string(mysqlData[consts.MYSQL_USER]))
+	assert.NotEmpty(t, mysqlData[consts.MYSQL_PASSWORD])
+
+	clickhouseData, err := dbhelper.GenerateDatabaseSecretData(objMeta, "clickhouse", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "team-a-app-db", string(clickhouseData[consts.CLICKHOUSE_DB]))
+	assert.Equal(t, "team-a-app-db", string(clickhouseData[consts.CLICKHOUSE_USER]))
+	assert.NotEmpty(t, clickhouseData[consts.CLICKHOUSE_PASSWORD])
+
+	_, err = dbhelper.GenerateDatabaseSecretData(objMeta, "oracle", "")
+	assert.Error(t, err)
 }
 
 func TestUnitMonitoringNotEnabled(t *testing.T) {
@@ -257,4 +319,22 @@ func TestUnitGetSSLModeMysql(t *testing.T) {
 		t.Error(err)
 	}
 	assert.Equal(t, "verify_ca", mode)
+}
+
+func TestUnitGetSSLModeUnknownEngine(t *testing.T) {
+	dbCR := &kindav1beta2.Database{Status: kindav1beta2.DatabaseStatus{Engine: "clickhouse"}}
+	instance := testutils.NewMysqlTestDbInstanceCr()
+
+	_, err := dbhelper.GetSSLMode(dbCR, &instance)
+	assert.ErrorContains(t, err, "unknown database engine")
+}
+
+func TestUnitFetchDatabaseDataUnknownEngine(t *testing.T) {
+	dbCR := &kindav1beta2.Database{Status: kindav1beta2.DatabaseStatus{Engine: "oracle"}}
+	instance := testutils.NewPostgresTestDbInstanceCr()
+
+	db, user, err := dbhelper.FetchDatabaseData(ctx, dbCR, testDbcred, &instance)
+	assert.ErrorContains(t, err, "not supported engine type")
+	assert.Nil(t, db)
+	assert.Nil(t, user)
 }

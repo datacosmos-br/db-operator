@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"context"
 
-	kindav1beta1 "github.com/db-operator/db-operator/v2/api/v1beta1"
+	kindav1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
 	"github.com/db-operator/db-operator/v2/pkg/consts"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,118 +41,131 @@ func (e *secretEventHandler) Update(ctx context.Context, evt event.TypedUpdateEv
 	log := ctrllog.FromContext(ctx)
 	log.Info("Start processing Database Secret Update Event")
 
-	switch v := evt.ObjectNew.(type) { //nolint:gocritic
-
-	default:
-		log.Error(nil, "database Secret Update Event error! Unknown object", "type", v.GetObjectKind(), "name", evt.ObjectNew.GetNamespace()+"/"+evt.ObjectNew.GetName()) //nolint:unused
+	if evt.ObjectNew == nil || evt.ObjectOld == nil {
+		log.V(1).Info("ignoring secret update event with nil object")
 		return
+	}
 
-	case *corev1.Secret:
-		// only labeled secrets are watched
-		secretNew := evt.ObjectNew.(*corev1.Secret)
-		secretOld := evt.ObjectOld.(*corev1.Secret)
+	secretNew, ok := evt.ObjectNew.(*corev1.Secret)
+	if !ok {
+		log.V(1).Info("ignoring update event where new object is not a Secret")
+		return
+	}
 
-		labels := secretNew.GetLabels()
-		kind, ok := labels[consts.USED_BY_KIND_LABEL_KEY]
-		if !ok {
-			log.Info("Secret handler won't trigger reconciliation, because label is empty", "label", consts.USED_BY_KIND_LABEL_KEY)
-			return
-		} else if kind != "Database" {
-			log.Info("Secret handler won't trigger reconciliation, because label doesn't have value 'Database'", "label", consts.USED_BY_KIND_LABEL_KEY)
-		}
+	secretOld, ok := evt.ObjectOld.(*corev1.Secret)
+	if !ok {
+		log.V(1).Info("ignoring update event where old object is not a Secret")
+		return
+	}
 
-		dbcrName, ok := labels[consts.USED_BY_NAME_LABEL_KEY]
-		if !ok {
-			log.Info("Secret handler won't trigger reconciliation, because label is empty", "label", consts.USED_BY_NAME_LABEL_KEY)
-			return
-		}
+	labels := secretNew.GetLabels()
+	kind, ok := labels[consts.USED_BY_KIND_LABEL_KEY]
+	if !ok {
+		log.V(1).Info("Secret handler won't trigger reconciliation, because label is empty", "label", consts.USED_BY_KIND_LABEL_KEY)
+		return
+	} else if kind != "Database" {
+		log.V(1).Info("Secret handler won't trigger reconciliation, because label doesn't have value 'Database'", "label", consts.USED_BY_KIND_LABEL_KEY)
+		return
+	}
 
-		log.Info("processing Database Secret label", "name", consts.USED_BY_NAME_LABEL_KEY, "value", dbcrName)
+	dbcrName, ok := labels[consts.USED_BY_NAME_LABEL_KEY]
+	if !ok {
+		log.V(1).Info("Secret handler won't trigger reconciliation, because label is empty", "label", consts.USED_BY_NAME_LABEL_KEY)
+		return
+	}
 
-		// send Database Reconcile Request
-		dbcr := &kindav1beta1.Database{}
-		if err := e.Get(ctx, types.NamespacedName{Namespace: secretNew.GetNamespace(), Name: dbcrName}, dbcr); err != nil {
-			log.Error(err, "couldn't get the database resource", "namespace", secretNew.GetNamespace(), "name", dbcrName)
-			return
-		}
+	log.Info("processing Database Secret label", "name", consts.USED_BY_NAME_LABEL_KEY, "value", dbcrName)
 
-		if dbcr.IsDeleted() {
-			log.Info("database has been marked for deletion, reconciliation won't be triggered", "name", dbcrName)
-			return
-		}
+	// send Database Reconcile Request
+	dbcr := &kindav1beta2.Database{}
+	if err := e.Get(ctx, types.NamespacedName{Namespace: secretNew.GetNamespace(), Name: dbcrName}, dbcr); err != nil {
+		log.Error(err, "couldn't get the database resource", "namespace", secretNew.GetNamespace(), "name", dbcrName)
+		return
+	}
 
-		// By default we don't need to run full reconciliation
-		fullReconcile := false
+	if dbcr.IsDeleted() {
+		log.Info("database has been marked for deletion, reconciliation won't be triggered", "name", dbcrName)
+		return
+	}
 
-		if _, ok := secretNew.GetAnnotations()[consts.SECRET_FORCE_RECONCILE]; ok {
-			fullReconcile = true
-			defer func() {
-				delete(secretNew.Annotations, consts.SECRET_FORCE_RECONCILE)
-				log.Info("removing annotation from the secret", "annotation", consts.SECRET_FORCE_RECONCILE, "secret", secretNew.GetName())
-				if err := e.Client.Update(ctx, secretNew, &client.UpdateOptions{}); err != nil {
-					log.Error(err, "couldn't remove annotation")
-				}
-			}()
-		} else {
-			inputsKeys := []string{}
-			switch dbcr.Status.Engine {
-			case "postgres":
-				inputsKeys = []string{
-					consts.POSTGRES_DB,
-					consts.POSTGRES_PASSWORD,
-					consts.POSTGRES_USER,
-				}
+	// By default we don't need to run full reconciliation
+	fullReconcile := false
 
-			case "mysql":
-				inputsKeys = []string{
-					consts.MYSQL_DB,
-					consts.MYSQL_PASSWORD,
-					consts.MYSQL_USER,
-				}
-
-			default:
-				log.Info("unknown database engine", "engine", dbcr.Status.Engine)
+	if _, ok := secretNew.GetAnnotations()[consts.SECRET_FORCE_RECONCILE]; ok {
+		fullReconcile = true
+		defer func() {
+			delete(secretNew.Annotations, consts.SECRET_FORCE_RECONCILE)
+			log.Info("removing annotation from the secret", "annotation", consts.SECRET_FORCE_RECONCILE, "secret", secretNew.GetName())
+			if err := e.Client.Update(ctx, secretNew, &client.UpdateOptions{}); err != nil {
+				log.Error(err, "couldn't remove annotation")
+			}
+		}()
+	} else {
+		inputsKeys := []string{}
+		switch dbcr.Status.Engine {
+		case "postgres":
+			inputsKeys = []string{
+				consts.POSTGRES_DB,
+				consts.POSTGRES_PASSWORD,
+				consts.POSTGRES_USER,
 			}
 
-			for _, key := range inputsKeys {
-				if !bytes.Equal(secretNew.Data[key], secretOld.Data[key]) {
-					fullReconcile = true
-					break
-				}
+		case "mysql":
+			inputsKeys = []string{
+				consts.MYSQL_DB,
+				consts.MYSQL_PASSWORD,
+				consts.MYSQL_USER,
 			}
+
+		case "clickhouse":
+			inputsKeys = []string{
+				consts.CLICKHOUSE_DB,
+				consts.CLICKHOUSE_PASSWORD,
+				consts.CLICKHOUSE_USER,
+			}
+
+		default:
+			log.Info("unknown database engine", "engine", dbcr.Status.Engine)
 		}
 
-		if fullReconcile {
-			log.Info("database Secret has been changed and related database resource will be reconciled", "secret", secretNew.Namespace+"/"+secretNew.Name, "database", dbcrName)
-			q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: secretNew.GetNamespace(),
-				Name:      dbcrName,
-			}})
+		for _, key := range inputsKeys {
+			if !bytes.Equal(secretNew.Data[key], secretOld.Data[key]) {
+				fullReconcile = true
+				break
+			}
 		}
+	}
+
+	if fullReconcile {
+		log.Info("database Secret has been changed and related database resource will be reconciled", "secret", secretNew.Namespace+"/"+secretNew.Name, "database", dbcrName)
+		q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+			Namespace: secretNew.GetNamespace(),
+			Name:      dbcrName,
+		}})
 	}
 }
 
 func (e *secretEventHandler) Delete(_ context.Context, _ event.TypedDeleteEvent[client.Object], _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	ctrllog.Log.Error(nil, "secretEventHandler.Delete(...) event has been FIRED but NOT implemented!")
+	ctrllog.Log.V(1).Info("ignoring delete event for database secret handler")
 }
 
 func (e *secretEventHandler) Generic(_ context.Context, _ event.TypedGenericEvent[client.Object], _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	ctrllog.Log.Error(nil, "secretEventHandler.Generic(...) event has been FIRED but NOT implemented!")
+	ctrllog.Log.V(1).Info("ignoring generic event for database secret handler")
 }
 
 func (e *secretEventHandler) Create(_ context.Context, _ event.TypedCreateEvent[client.Object], _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	ctrllog.Log.Error(nil, "secretEventHandler.Create(...) event has been FIRED but NOT implemented!")
+	ctrllog.Log.V(1).Info("ignoring create event for database secret handler")
 }
 
 /* ------ Event Filter Functions ------ */
 
 func isWatchedNamespace(watchNamespaces []string, ro client.Object) bool {
-	if watchNamespaces[0] == "" { // # it's necessary to set "" to watch cluster wide
+	if len(watchNamespaces) == 0 || watchNamespaces[0] == "" { // # it's necessary to set "" to watch cluster wide
 		return true // watch for all namespaces
 	}
 	// define object's namespace
 	objectNamespace := ""
-	database, isDatabase := ro.(*kindav1beta1.Database)
+	database, isDatabase := ro.(*kindav1beta2.Database)
 	if isDatabase {
 		objectNamespace = database.Namespace
 	} else {
@@ -175,7 +188,7 @@ func isWatchedNamespace(watchNamespaces []string, ro client.Object) bool {
 }
 
 func isDatabase(ro client.Object) bool {
-	_, isDatabase := ro.(*kindav1beta1.Database)
+	_, isDatabase := ro.(*kindav1beta2.Database)
 	return isDatabase
 }
 
@@ -189,7 +202,7 @@ func isObjectUpdated(e event.UpdateEvent) bool {
 		return false
 	}
 	// if object kind is a Database check that 'metadata.generation' field ('spec' section) has been changed
-	_, isDatabase := e.ObjectNew.(*kindav1beta1.Database)
+	_, isDatabase := e.ObjectNew.(*kindav1beta2.Database)
 	if isDatabase {
 		return e.ObjectNew.GetGeneration() != e.ObjectOld.GetGeneration()
 	}
