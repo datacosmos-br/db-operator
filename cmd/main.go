@@ -149,6 +149,7 @@ func main() {
 			Log:      ctrl.Log.WithName("controllers").WithName("DbInstance"),
 			Scheme:   mgr.GetScheme(),
 			Interval: time.Duration(i),
+			//lint:ignore SA1019 controllers still depend on the old record.EventRecorder interface
 			Recorder: mgr.GetEventRecorderFor("dbinstance-controller"),
 			Conf:     conf,
 		}).SetupWithManager(mgr); err != nil {
@@ -161,9 +162,10 @@ func main() {
 		setupLog.Info("Database resources will be served in the next namespaces", "namespaces", namespaces)
 
 		if err = (&controllers.DatabaseReconciler{
-			Client:          mgr.GetClient(),
-			Log:             ctrl.Log.WithName("controllers").WithName("Database"),
-			Scheme:          mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("Database"),
+			Scheme: mgr.GetScheme(),
+			//lint:ignore SA1019 controllers still depend on the old record.EventRecorder interface
 			Recorder:        mgr.GetEventRecorderFor("database-controller"),
 			Interval:        time.Duration(i),
 			Conf:            conf,
@@ -175,8 +177,9 @@ func main() {
 		}
 
 		if err = (&controllers.DbUserReconciler{
-			Client:       mgr.GetClient(),
-			Scheme:       mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+			//lint:ignore SA1019 controllers still depend on the old record.EventRecorder interface
 			Recorder:     mgr.GetEventRecorderFor("dbuser-controller"),
 			Interval:     time.Duration(i),
 			CheckChanges: checkForChanges,

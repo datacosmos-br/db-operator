@@ -93,7 +93,7 @@ func (v *DbInstanceCustomValidator) ValidateUpdate(_ context.Context, oldObj, ne
 	// db-instance host, that can break all the applications that are using that dbinstance
 	if oldObj.Status.Connected {
 		if !reflect.DeepEqual(oldObj.Spec.InstanceData, newObj.Spec.InstanceData) {
-			allowMigration, ok := oldObj.ObjectMeta.Annotations[consts.DBINSTANCE_ALLOW_MIGRATION]
+			allowMigration, ok := oldObj.Annotations[consts.DBINSTANCE_ALLOW_MIGRATION]
 			if !ok || allowMigration != "true" {
 				return nil, fmt.Errorf(
 					"to change the connection data of an already connected instance, set the %s annotation to 'true'",
