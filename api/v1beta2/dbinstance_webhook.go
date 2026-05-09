@@ -26,7 +26,6 @@ import (
 
 	"github.com/db-operator/db-operator/v2/internal/helpers/kube"
 	"github.com/db-operator/db-operator/v2/pkg/consts"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -41,27 +40,12 @@ func (r *DbInstance) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta2-dbinstance,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbinstances,verbs=create;update,versions=v1beta2,name=vdbinstance-v1beta2.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta2-dbinstance,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbinstances,verbs=create;update,versions=v1beta2,name=vdbinstance.kb.io,admissionReviewVersions=v1
 
-// DbInstanceCustomValidator handles validation for DbInstance resources.
+// DbInstanceCustomValidator implements admission.Validator[*DbInstance].
 type DbInstanceCustomValidator struct{}
 
-func (v *DbInstanceCustomValidator) ValidateCreate(_ context.Context, obj *DbInstance) (admission.Warnings, error) {
-	return obj.ValidateCreate()
-}
-
-func (v *DbInstanceCustomValidator) ValidateUpdate(_ context.Context, newObj *DbInstance, oldObj *DbInstance) (admission.Warnings, error) {
-	return newObj.ValidateUpdate(oldObj)
-}
-
-func (v *DbInstanceCustomValidator) ValidateDelete(_ context.Context, obj *DbInstance) (admission.Warnings, error) {
-	return obj.ValidateDelete()
-}
-
-// Default sets default values on the DbInstance resource.
-func (r *DbInstance) Default() {
-	dbinstancelog.Info("default", "name", r.Name)
-}
+var _ admission.Validator[*DbInstance] = &DbInstanceCustomValidator{}
 
 func TestAllowedPrivileges(privileges []string) error {
 	for _, privilege := range privileges {
@@ -72,34 +56,32 @@ func TestAllowedPrivileges(privileges []string) error {
 	return nil
 }
 
-// ValidateCreate validates the DbInstance on creation.
-func (r *DbInstance) ValidateCreate() (admission.Warnings, error) {
-	if err := TestAllowedPrivileges(r.Spec.AllowedPrivileges); err != nil {
+func (v *DbInstanceCustomValidator) ValidateCreate(ctx context.Context, obj *DbInstance) (admission.Warnings, error) {
+	if err := TestAllowedPrivileges(obj.Spec.AllowedPrivileges); err != nil {
 		return nil, err
 	}
 
-	dbinstancelog.Info("validate create", "name", r.Name)
-	if err := ValidateConfigVsConfigFrom(r.Spec.InstanceData); err != nil {
+	dbinstancelog.Info("validate create", "name", obj.Name)
+	if err := ValidateConfigVsConfigFrom(obj.Spec.InstanceData); err != nil {
 		return nil, err
 	}
-	if err := ValidateEngine(r.Spec.Engine); err != nil {
+	if err := ValidateEngine(obj.Spec.Engine); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
 // ValidateUpdate validates the DbInstance on update.
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	if err := TestAllowedPrivileges(r.Spec.AllowedPrivileges); err != nil {
+func (v *DbInstanceCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *DbInstance) (admission.Warnings, error) {
+	if err := TestAllowedPrivileges(newObj.Spec.AllowedPrivileges); err != nil {
 		return nil, err
 	}
 
 	// Once connection data is changed, all the databases will be reconciled with newer
 	// db-instance host, that can break all the applications that are using that dbinstance
-	if old.(*DbInstance).Status.Connected {
-		if !reflect.DeepEqual(old.(*DbInstance).Spec.InstanceData, r.Spec.InstanceData) {
-			allowMigration, ok := old.(*DbInstance).ObjectMeta.Annotations[consts.DBINSTANCE_ALLOW_MIGRATION]
+	if oldObj.Status.Connected {
+		if !reflect.DeepEqual(oldObj.Spec.InstanceData, newObj.Spec.InstanceData) {
+			allowMigration, ok := oldObj.ObjectMeta.Annotations[consts.DBINSTANCE_ALLOW_MIGRATION]
 			if !ok || allowMigration != "true" {
 				return nil, fmt.Errorf(
 					"to change the connection data of an already connected instance, set the %s annotation to 'true'",
@@ -108,9 +90,9 @@ func (r *DbInstance) ValidateUpdate(old runtime.Object) (admission.Warnings, err
 			}
 		}
 	}
-	dbinstancelog.Info("validate update", "name", r.Name)
+	dbinstancelog.Info("validate update", "name", newObj.Name)
 	immutableErr := "cannot change %s, the field is immutable"
-	if r.Spec.Engine != old.(*DbInstance).Spec.Engine {
+	if newObj.Spec.Engine != oldObj.Spec.Engine {
 		return nil, fmt.Errorf(immutableErr, "engine")
 	}
 
@@ -149,7 +131,7 @@ func ValidateEngine(engine Engine) error {
 }
 
 // ValidateDelete validates the DbInstance on deletion.
-func (r *DbInstance) ValidateDelete() (admission.Warnings, error) {
-	dbinstancelog.Info("validate delete", "name", r.Name)
+func (v *DbInstanceCustomValidator) ValidateDelete(ctx context.Context, obj *DbInstance) (admission.Warnings, error) {
+	dbinstancelog.Info("validate delete", "name", obj.Name)
 	return nil, nil
 }

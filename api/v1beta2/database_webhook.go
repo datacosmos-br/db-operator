@@ -23,7 +23,6 @@ import (
 	"regexp"
 	"slices"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -39,57 +38,46 @@ func (r *Database) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-kinda-rocks-v1beta2-database,mutating=true,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=databases,verbs=create;update,versions=v1beta2,name=mdatabase-v1beta2.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-kinda-rocks-v1beta1-database,mutating=true,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=databases,verbs=create;update,versions=v1beta1,name=mdatabase.kb.io,admissionReviewVersions=v1
 
 const (
 	DEFAULT_TEMPLATE_VALUE = "{{ .Protocol }}://{{ .Username }}:{{ .Password }}@{{ .Hostname }}:{{ .Port }}/{{ .Database }}"
 	DEFAULT_TEMPLATE_NAME  = "CONNECTION_STRING"
 )
 
-// DatabaseCustomDefaulter handles defaulting for Database resources.
+// DatabaseCustomDefaulter implements admission.Defaulter[*Database].
 type DatabaseCustomDefaulter struct{}
 
-func (d *DatabaseCustomDefaulter) Default(_ context.Context, obj *Database) error {
-	obj.Default()
-	return nil
-}
+var _ admission.Defaulter[*Database] = &DatabaseCustomDefaulter{}
 
-// Default sets default values on the Database resource.
-func (r *Database) Default() {
-	databaselog.Info("default", "name", r.Name)
-	if len(r.Spec.Credentials.Templates) == 0 {
-		r.Spec.Credentials.Templates = Templates{
-			&Template{
-				Name:     DEFAULT_TEMPLATE_NAME,
-				Template: DEFAULT_TEMPLATE_VALUE,
+func (d *DatabaseCustomDefaulter) Default(ctx context.Context, obj *Database) error {
+	databaselog.Info("default", "name", obj.Name)
+	if len(obj.Spec.Credentials.Templates) == 0 {
+		obj.Spec.Credentials = Credentials{
+			Templates: Templates{
+				&Template{
+					Name:     DEFAULT_TEMPLATE_NAME,
+					Template: DEFAULT_TEMPLATE_VALUE,
+				},
 			},
 		}
 	}
+	return nil
 }
 
-//+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta2-database,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=databases,verbs=create;update,versions=v1beta2,name=vdatabase-v1beta2.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta1-database,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=databases,verbs=create;update,versions=v1beta1,name=vdatabase.kb.io,admissionReviewVersions=v1
 
-// DatabaseCustomValidator handles validation for Database resources.
+// DatabaseCustomValidator implements admission.Validator[*Database].
 type DatabaseCustomValidator struct{}
 
-func (v *DatabaseCustomValidator) ValidateCreate(_ context.Context, obj *Database) (admission.Warnings, error) {
-	return obj.ValidateCreate()
-}
-
-func (v *DatabaseCustomValidator) ValidateUpdate(_ context.Context, newObj *Database, oldObj *Database) (admission.Warnings, error) {
-	return newObj.ValidateUpdate(oldObj)
-}
-
-func (v *DatabaseCustomValidator) ValidateDelete(_ context.Context, obj *Database) (admission.Warnings, error) {
-	return obj.ValidateDelete()
-}
+var _ admission.Validator[*Database] = &DatabaseCustomValidator{}
 
 // ValidateCreate validates the Database on creation.
-func (r *Database) ValidateCreate() (admission.Warnings, error) {
-	databaselog.Info("validate create", "name", r.Name)
+func (v *DatabaseCustomValidator) ValidateCreate(ctx context.Context, obj *Database) (admission.Warnings, error) {
+	databaselog.Info("validate create", "name", obj.Name)
 
-	if r.Spec.Credentials.Templates != nil {
-		if err := ValidateTemplates(r.Spec.Credentials.Templates); err != nil {
+	if obj.Spec.Credentials.Templates != nil {
+		if err := ValidateTemplates(obj.Spec.Credentials.Templates); err != nil {
 			return nil, err
 		}
 	}
@@ -98,25 +86,31 @@ func (r *Database) ValidateCreate() (admission.Warnings, error) {
 }
 
 // ValidateUpdate validates the Database on update.
-func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	databaselog.Info("validate update", "name", r.Name)
+func (v *DatabaseCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *Database) (admission.Warnings, error) {
+	databaselog.Info("validate update", "name", newObj.Name)
 
-	if r.Spec.Credentials.Templates != nil {
-		if err := ValidateTemplates(r.Spec.Credentials.Templates); err != nil {
+	if newObj.Spec.Credentials.Templates != nil {
+		if err := ValidateTemplates(newObj.Spec.Credentials.Templates); err != nil {
 			return nil, err
 		}
 	}
 
 	// Ensure fields are immutable
 	immutableErr := "cannot change %s, the field is immutable"
-	oldDatabase, _ := old.(*Database)
-	if r.Spec.Instance != oldDatabase.Spec.Instance {
+	if newObj.Spec.Instance != oldObj.Spec.Instance {
 		return nil, fmt.Errorf(immutableErr, "spec.instance")
 	}
 
-	if r.Spec.Postgres.Params.Template != oldDatabase.Spec.Postgres.Params.Template {
+	if newObj.Spec.Postgres.Params.Template != oldObj.Spec.Postgres.Params.Template {
 		return nil, fmt.Errorf(immutableErr, "spec.postgres.template")
 	}
+
+	return nil, nil
+}
+
+// ValidateDelete validates the Database on deletion.
+func (v *DatabaseCustomValidator) ValidateDelete(ctx context.Context, obj *Database) (admission.Warnings, error) {
+	databaselog.Info("validate delete", "name", obj.Name)
 
 	return nil, nil
 }
@@ -136,12 +130,4 @@ func ValidateSecretTemplates(templates map[string]string) error {
 		}
 	}
 	return nil
-}
-
-// ValidateDelete validates the Database on deletion.
-func (r *Database) ValidateDelete() (admission.Warnings, error) {
-	databaselog.Info("validate delete", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object deletion.
-	return nil, nil
 }

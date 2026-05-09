@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"strconv"
 
-	kindav1beta1 "github.com/db-operator/db-operator/v2/api/v1beta1"
+	kindav1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
 	"github.com/db-operator/db-operator/v2/pkg/consts"
 	"github.com/db-operator/db-operator/v2/pkg/utils/database"
 	"github.com/db-operator/db-operator/v2/pkg/utils/kci"
@@ -30,20 +30,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred database.Credentials, instance *kindav1beta1.DbInstance) (database.Database, *database.DatabaseUser, error) {
+func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta2.Database, dbCred database.Credentials, instance *kindav1beta2.DbInstance) (database.Database, *database.DatabaseUser, error) {
 	log := log.FromContext(ctx)
-	host := instance.Status.Info["DB_CONN"]
-	port, err := strconv.ParseUint(instance.Status.Info["DB_PORT"], 10, 16)
-	if err != nil {
-		log.Error(err, "can't get port information from the instanceRef")
-		return nil, nil, err
-	}
-
-	backend, err := instance.GetBackendType()
-	if err != nil {
-		log.Error(err, "could not get backend type")
-		return nil, nil, err
-	}
+	host := instance.Status.URL
+	port := instance.Status.Port
 
 	monitoringEnabled := instance.IsMonitoringEnabled()
 
@@ -62,9 +52,12 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 		if err != nil {
 			log.Info(
 				"can't parse a value of an annotation into a bool, ignoring",
-				"annotation", consts.RDS_IAM_IMPERSONATE_WORKAROUND,
-				"value", val,
-				"error", err,
+				"annotation",
+				consts.RDS_IAM_IMPERSONATE_WORKAROUND,
+				"value",
+				val,
+				"error",
+				err,
 			)
 		} else {
 			enableRdsIamImpersonate = boolVal
@@ -73,19 +66,8 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 
 	switch dbcr.Status.Engine {
 	case "postgres":
-		// Is force delete enabled
-		enableforceDelete := false
-		val, ok := dbcr.Annotations[consts.POSTGRES_FORCE_DELETE_DB]
-		if ok {
-			enableforceDelete, err = strconv.ParseBool(val)
-			if err != nil {
-				enableforceDelete = false
-			}
-		}
-
 		extList := dbcr.Spec.Postgres.Extensions
 		db := database.Postgres{
-			Backend:                     backend,
 			Host:                        host,
 			Port:                        uint16(port),
 			Database:                    dbCred.Name,
@@ -95,16 +77,14 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 			SkipCAVerify:                instance.Spec.SSLConnection.SkipVerify,
 			DropPublicSchema:            dbcr.Spec.Postgres.DropPublicSchema,
 			Schemas:                     dbcr.Spec.Postgres.Schemas,
-			Template:                    dbcr.Spec.Postgres.Template,
+			Template:                    dbcr.Spec.Postgres.Params.Template,
 			MainUser:                    dbuser,
 			RDSIAMImpersonateWorkaround: enableRdsIamImpersonate,
-			ForceDelete:                 enableforceDelete,
 		}
 		return db, dbuser, nil
 
 	case "mysql":
 		db := database.Mysql{
-			Backend:      backend,
 			Host:         host,
 			Port:         uint16(port),
 			Database:     dbCred.Name,
@@ -113,23 +93,13 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 		}
 
 		return db, dbuser, nil
-
-	case "clickhouse":
-		db := database.ClickHouse{
-			Host:        host,
-			Port:        uint16(port),
-			Database:    dbCred.Name,
-			ClusterName: dbcr.Spec.Clickhouse.ClusterName,
-		}
-		return db, dbuser, nil
-
 	default:
 		err := errors.New("not supported engine type")
 		return nil, nil, err
 	}
 }
 
-func ParseDatabaseSecretData(dbcr *kindav1beta1.Database, data map[string][]byte) (database.Credentials, error) {
+func ParseDatabaseSecretData(dbcr *kindav1beta2.Database, data map[string][]byte) (database.Credentials, error) {
 	cred := database.Credentials{}
 
 	switch dbcr.Status.Engine {
@@ -173,26 +143,6 @@ func ParseDatabaseSecretData(dbcr *kindav1beta1.Database, data map[string][]byte
 		}
 
 		return cred, nil
-	case "clickhouse":
-		if name, ok := data[consts.CLICKHOUSE_DB]; ok {
-			cred.Name = string(name)
-		} else {
-			return cred, errors.New("CLICKHOUSE_DB key does not exist in secret data")
-		}
-
-		if user, ok := data[consts.CLICKHOUSE_USER]; ok {
-			cred.Username = string(user)
-		} else {
-			return cred, errors.New("CLICKHOUSE_USER key does not exist in secret data")
-		}
-
-		if pass, ok := data[consts.CLICKHOUSE_PASSWORD]; ok {
-			cred.Password = string(pass)
-		} else {
-			return cred, errors.New("CLICKHOUSE_PASSWORD key does not exist in secret data")
-		}
-
-		return cred, nil
 	default:
 		return cred, errors.New("not supported engine type")
 	}
@@ -201,7 +151,7 @@ func ParseDatabaseSecretData(dbcr *kindav1beta1.Database, data map[string][]byte
 // If dbName is empty, it will be generated, that should be used for database resources.
 // In case this function is called by dbuser controller, dbName should be taken from the
 // `Spec.DatabaseRef` field, so it will ba passed as the last argument
-func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName, existingUser string) (map[string][]byte, error) {
+func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName string) (map[string][]byte, error) {
 	const (
 		// https://dev.mysql.com/doc/refman/5.7/en/identifier-length.html
 		mysqlDBNameLengthLimit = 63
@@ -211,19 +161,9 @@ func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName, ex
 	if len(dbName) == 0 {
 		dbName = objectMeta.Namespace + "-" + objectMeta.Name
 	}
-	var dbUser string
-	var dbPassword string
-	if len(existingUser) > 0 {
-		dbUser = existingUser
-		dbPassword = ""
-	} else {
-		var err error
-		dbPassword, err = kci.GeneratePass()
-		if err != nil {
-			return nil, err
-		}
-		dbUser = objectMeta.Namespace + "-" + objectMeta.Name
-	}
+	dbUser := objectMeta.Namespace + "-" + objectMeta.Name
+	dbPassword := kci.GeneratePass()
+
 	switch engine {
 	case "postgres":
 		data := map[string][]byte{
@@ -239,19 +179,12 @@ func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName, ex
 			consts.MYSQL_PASSWORD: []byte(dbPassword),
 		}
 		return data, nil
-	case "clickhouse":
-		data := map[string][]byte{
-			consts.CLICKHOUSE_DB:       []byte(dbName),
-			consts.CLICKHOUSE_USER:     []byte(dbUser),
-			consts.CLICKHOUSE_PASSWORD: []byte(dbPassword),
-		}
-		return data, nil
 	default:
 		return nil, errors.New("not supported engine type")
 	}
 }
 
-func GetSSLMode(dbcr *kindav1beta1.Database, instance *kindav1beta1.DbInstance) (string, error) {
+func GetSSLMode(dbcr *kindav1beta2.Database, instance *kindav1beta2.DbInstance) (string, error) {
 	genericSSL, err := GetGenericSSLMode(dbcr, instance)
 	if err != nil {
 		return "", err
@@ -282,7 +215,7 @@ func GetSSLMode(dbcr *kindav1beta1.Database, instance *kindav1beta1.DbInstance) 
 	return "", fmt.Errorf("unknown database engine: %s", dbcr.Status.Engine)
 }
 
-func GetGenericSSLMode(dbcr *kindav1beta1.Database, instance *kindav1beta1.DbInstance) (string, error) {
+func GetGenericSSLMode(dbcr *kindav1beta2.Database, instance *kindav1beta2.DbInstance) (string, error) {
 	if !instance.Spec.SSLConnection.Enabled {
 		return consts.SSL_DISABLED, nil
 	} else {
