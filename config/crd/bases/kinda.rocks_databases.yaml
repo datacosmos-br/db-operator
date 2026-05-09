@@ -382,15 +382,6 @@ spec:
                 type: object
               cleanup:
                 type: boolean
-              clickhouse:
-                description: Clickhouse struct should be used to provide resource
-                  that only applicable to ClickHouse
-                properties:
-                  clusterName:
-                    description: ClusterName is the name of the ClickHouse cluster
-                      (used for ON CLUSTER queries)
-                    type: string
-                type: object
               credentials:
                 description: |-
                   Credentials should be used to setup everything relates to k8s secrets and configmaps
