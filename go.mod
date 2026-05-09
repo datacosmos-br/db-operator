@@ -6,6 +6,7 @@ go 1.25.10
 
 require (
 	bou.ke/monkey v1.0.2
+	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/GoogleCloudPlatform/cloudsql-proxy v1.37.15
 	github.com/db-operator/can-haz-password v0.1.1
 	github.com/go-logr/logr v1.4.3
@@ -38,6 +39,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
