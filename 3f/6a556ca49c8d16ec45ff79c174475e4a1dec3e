@@ -1,0 +1,148 @@
+internal/controller/dbinstance_controller.go
+  s_1e31d5fc44111b::t_7e26d6c4cb2d77 17,32,45
+  s_1e31d5fc44111b::t_96a1c52f67fff8 21,25,28,50-52,54-58,65,69,85,88,92-102,106-109,111-112,114-115,117,119-120,123-126,128-130,132-134,137-143,145,147-148,150,153-154,156,159-161,164-165,171-183,185-192,194-196,200-204,206-232
+api/v1beta2/dbuser_webhook_test.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 22,29,35,41,47
+internal/utils/templates/templates.go
+  h_5cf852cc46bf92 33
+  s_1e31d5fc44111b::t_6e4b7f80adb87c 24,32,44,72-73,110,159-160,162-163,167-172
+  s_1e31d5fc44111b::t_96a1c52f67fff8 27,36,60-62,64,70,112-113,124-125,155,201,255-256,261-262
+pkg/utils/kci/helper.go
+  h_5cf852cc46bf92 21,86
+  s_1e31d5fc44111b::t_59f1c0f2bc291a 83,89
+api/v1beta2/webhook_test.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 6,11,23,26,32,34-42
+api/v1beta1/dbuser_types.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 23,25,130-180
+internal/controller/database_secret_handler.go
+  h_5cf852cc46bf92 28,31,40-42,44,47,58,61,66,70,75,80,91,93,114,126,135-136,139-140,143-144,149,163,177,184,188,206
+  s_1e31d5fc44111b::t_95fa1673b18f05 18,25-27,29-30,32,35-37,45-46,48-57,59-60,64-65,67-68,72-74,76-79,81-85,87-90,92,94-95,97-113,117-121,123-125,127-130,137-138,141-142,145-148,150-161,164,167-174,178-183,185-187,189-204,207,209
+.pre-commit-config.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 3,6-9,11
+internal/utils/templates/templates_test.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 23,62,70-73,77,85-88,444-445,489-490,494,498,502,506,535-536,540,547-548
+internal/utils/testutils/testutils.go
+  s_1e31d5fc44111b::t_b0d2568416d02e 62
+  s_1e31d5fc44111b::t_96a1c52f67fff8 20,31-33,35-37,40-43,47,51-52,54-56,59-61,66,68-72,74,77,85,87-91,97,100
+internal/controller/main.go
+  s_1e31d5fc44111b::t_976c27f139aaf0 20
+config/webhook/manifests.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 33-46,93-141
+api/v1beta1/dbinstance_webhook_test.go
+  ai_agent 1,6-9,11,14-23,27-39,41-52,55-67,69-79,81-86,88-97,99-109,111-116,118-126,129-139,141-146,148-162,165-169,171-175,177-181,183,185-253,255-296,298-337,339-360
+docs/creatingdatabases.md
+  ai_agent 1-291
+config/rbac/database_viewer_role.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 1,6-10
+config/crd/bases/kinda.rocks_dbusers.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 177-305
+go.sum
+  ai_agent 1-12
+api/v1beta1/dbinstance_types.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 22-23,25,87-92,220-276
+config/samples/_v1beta2_dbinstance.yaml
+  s_1e31d5fc44111b::t_497b191733f448 1,4-10,12
+api/v1beta1/zz_generated.deepcopy.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 22-23,544,549,554
+config/samples/_v1beta2_dbuser.yaml
+  s_1e31d5fc44111b::t_497b191733f448 1-12
+config/samples/_v1beta2_database.yaml
+  s_1e31d5fc44111b::t_497b191733f448 1-2,5-10,12
+config/samples/kustomization.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 3-6
+internal/helpers/common/common_test.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 29-34
+config/rbac/database_editor_role.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 1,6-10
+internal/helpers/kube/kube.go
+  s_1e31d5fc44111b::t_94ddeb855806d4 29,48,54,112,160
+  h_5cf852cc46bf92 31,107,114
+api/v1beta2/dbuser_webhook.go
+  s_1e31d5fc44111b::t_f6ae244416506b 43,46,49,51,54,59-60,77,79,81,85,88,91-92,96,99-100,104,113-114
+  s_1e31d5fc44111b::t_96a1c52f67fff8 41
+PROJECT
+  s_1e31d5fc44111b::t_96a1c52f67fff8 60-92
+api/v1beta2/database_webhook_test.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 7,20,28
+docs/creatinginstances.md
+  ai_agent 1-28,32,35-96,98-113,115-123
+pkg/utils/kci/password.go
+  h_5cf852cc46bf92 20,31
+  s_1e31d5fc44111b::t_59f1c0f2bc291a 27,33,53
+README.md
+  s_1e31d5fc44111b::t_96a1c52f67fff8 5-8,12-13,16,21-82
+pkg/consts/consts.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 50-51
+go.mod
+  s_1e31d5fc44111b::t_96a1c52f67fff8 3,10
+  h_5cf852cc46bf92 19-20,30,96
+api/common/common_api.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 3
+config/crd/bases/kinda.rocks_databases.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 546-693
+docs/creatingusers.md
+  ai_agent 1-47
+docker-compose.yml
+  ai_agent 1-15
+internal/controller/suite_test.go
+  s_1e31d5fc44111b::t_ae34af17e6acd5 17
+cmd/main.go
+  s_1e31d5fc44111b::t_705477d7320f19 151,166,179
+  s_1e31d5fc44111b::t_96a1c52f67fff8 34,58,118-119,122,126
+api/v1beta2/webhook.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 23
+api/v1beta1/database_types.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 24,27,106,174-235
+Containerfile
+  s_1e31d5fc44111b::t_96a1c52f67fff8 1,24
+internal/controller/metrics.go
+  s_1e31d5fc44111b::t_7e26d6c4cb2d77 17
+internal/helpers/common/common.go
+  h_5cf852cc46bf92 54
+  s_1e31d5fc44111b::t_96a1c52f67fff8 24,31-32,34,39-40
+api/v1beta2/database_webhook.go
+  s_1e31d5fc44111b::t_e667fa65c48ce5 48,51-61,65,68,70,73,76-77,79-80,89-90,92-93,100,104,111-114
+internal/controller/database_controller.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 23,31,65-71,85,149,162,191,242,297-298,316,345-346,383-385,389,396,407-408,422,429,441,477,489,501,522,539,560,577,579,584-586,594-595,605,609,619,623,633-634,640-644,646-648,652-657,660,685,687,693
+  s_1e31d5fc44111b::t_7c5e6de3715476 18,27,29,45,56,105,128-132,196-198,247,290,295,301-302,305,318-319,326,331,370-381,451,511,549,668
+internal/helpers/database/database.go
+  s_1e31d5fc44111b::t_d7f75a99c5d6d1 55-60,154,164,166
+  h_5cf852cc46bf92 165
+  s_1e31d5fc44111b::t_96a1c52f67fff8 25,33,35-36,80,102,187,218
+api/v1beta2/database_types.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 33
+  h_5cf852cc46bf92 34,36,40
+internal/controller/dbuser_controller.go
+  s_1e31d5fc44111b::t_7c5e6de3715476 17,39,51,283-292,297,407
+  s_1e31d5fc44111b::t_96a1c52f67fff8 27,66,91,105,110,123,133-140,143-148,150-164,166,168-169,171-176,178-180,182-198,200-204,207-210,213-217,219-223,225-229,231-235,238-243,251,255-258,262,266,276,349-351,356-360,362-364,368-373,380,397,418,433,437
+config/crd/bases/kinda.rocks_dbinstances.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 278-279,298-299,318-319,432-613
+api/v1beta2/dbinstance_webhook.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 43
+  s_1e31d5fc44111b::t_fd6370888da44a 45,48,59-60,64-65,68,75-76,82-84,93,95,134-135
+pkg/utils/database/postgres.go
+  s_1e31d5fc44111b::t_96a1c52f67fff8 86,254
+config/crd/kustomization.yaml
+  s_1e31d5fc44111b::t_96a1c52f67fff8 13-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "3f6a556ca49c8d16ec45ff79c174475e4a1dec3e",
+  "prompts": {},
+  "humans": {
+    "h_5cf852cc46bf92": {
+      "author": "FLEXT Bot <team@flext.sh>"
+    }
+  },
+  "sessions": {
+    "s_1e31d5fc44111b": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "868ee30f-1be8-4c22-af2b-04e7f96c0832",
+        "model": "unknown"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    }
+  }
+}
