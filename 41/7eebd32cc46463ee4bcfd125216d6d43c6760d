@@ -1,0 +1,41 @@
+pkg/consts/consts.go
+  s_177790736bb8d7::t_489519fc2295bb 23-31,36-38
+internal/controller/dbuser_controller.go
+  s_177790736bb8d7::t_da76249614c839 344-362
+pkg/utils/database/handler.go
+  s_177790736bb8d7::t_4d1baa9b04cade 104-105
+internal/webhook/v1beta2/webhook_unit_test.go
+  s_177790736bb8d7::t_085cbae3183cd5 124-126
+api/v1beta2/database_types.go
+  s_177790736bb8d7::t_32f2fe732e9cc4 36,40-43
+internal/webhook/v1beta2/dbinstance_webhook.go
+  s_177790736bb8d7::t_870e4c43938231 147
+api/v1beta2/types.go
+  s_177790736bb8d7::t_4086626d8af540 41
+internal/helpers/database/database.go
+  s_177790736bb8d7::t_5e54fb445cc3ea 154-172
+  s_177790736bb8d7::t_3afa902145d2a5 213-219
+  s_177790736bb8d7::t_730cf7b244ea2a 96-102
+internal/helpers/database/database_test.go
+  s_177790736bb8d7::t_b26f7574a3af62 54-68
+  s_177790736bb8d7::t_0955ac792c9cbd 112-131,147-151
+internal/controller/dbuser_controller_helpers_test.go
+  s_177790736bb8d7::t_1ced6d30f343d0 43-56,64-65
+  s_177790736bb8d7::t_3554797ce402c9 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "417eebd32cc46463ee4bcfd125216d6d43c6760d",
+  "prompts": {},
+  "sessions": {
+    "s_177790736bb8d7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a94f82f9-0316-455c-9e25-e7bdaf02c664",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    }
+  }
+}
