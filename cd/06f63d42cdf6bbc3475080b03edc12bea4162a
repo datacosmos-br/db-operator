@@ -1,0 +1,25 @@
+api/v1beta2/webhook_test.go
+  s_1e31d5fc44111b::t_8dedacc2e0da2b 6
+api/v1beta2/database_webhook_test.go
+  s_1e31d5fc44111b::t_8dedacc2e0da2b 7
+api/v1beta2/dbuser_webhook_test.go
+  s_1e31d5fc44111b::t_8dedacc2e0da2b 22-23
+api/v1beta2/dbinstance_webhook_test.go
+  s_1e31d5fc44111b::t_8dedacc2e0da2b 6-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "cd06f63d42cdf6bbc3475080b03edc12bea4162a",
+  "prompts": {},
+  "sessions": {
+    "s_1e31d5fc44111b": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "868ee30f-1be8-4c22-af2b-04e7f96c0832",
+        "model": "unknown"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    }
+  }
+}
