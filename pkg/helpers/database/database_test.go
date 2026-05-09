@@ -21,10 +21,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/db-operator/db-operator/pkg/consts"
-	dbhelper "github.com/db-operator/db-operator/pkg/helpers/database"
-	"github.com/db-operator/db-operator/pkg/utils/database"
-	"github.com/db-operator/db-operator/pkg/utils/testutils"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
+	dbhelper "github.com/db-operator/db-operator/v2/pkg/helpers/database"
+	"github.com/db-operator/db-operator/v2/pkg/utils/database"
+	"github.com/db-operator/db-operator/v2/pkg/utils/testutils"
 	"github.com/stretchr/testify/assert"
 )
 

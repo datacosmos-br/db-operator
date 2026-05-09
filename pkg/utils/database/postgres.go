@@ -26,14 +26,14 @@ import (
 
 	// Don't delete below package. Used for driver "cloudsqlpostgres"
 	_ "github.com/GoogleCloudPlatform/cloudsql-proxy/proxy/dialers/postgres"
-	"github.com/db-operator/db-operator/pkg/utils/kci"
+	"github.com/db-operator/db-operator/v2/pkg/utils/kci"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	// Don't delete below package. Used for driver "postgres"
 	"github.com/lib/pq"
 )
 
-// Postgres is a database interface, abstraced object
+// Postgres is a database interface, abstracted object
 // represents a database on postgres instance
 // can be used to execute query to postgres database
 type Postgres struct {
@@ -56,6 +56,9 @@ type Postgres struct {
 	// admin/main users by connection as an admin and then
 	// setting role to the user that is being created
 	RDSIAMImpersonateWorkaround bool
+	// If true, databases with active connections will be
+	// forcefully removed.
+	ForceDelete bool
 }
 
 const postgresDefaultSSLMode = "disable"
@@ -396,7 +399,11 @@ func (p Postgres) createDatabase(ctx context.Context, admin *DatabaseUser) error
 func (p Postgres) deleteDatabase(ctx context.Context, admin *DatabaseUser) error {
 	log := log.FromContext(ctx)
 	revoke := fmt.Sprintf("REVOKE CONNECT ON DATABASE \"%s\" FROM PUBLIC, \"%s\";", p.Database, admin.Username)
-	delete := fmt.Sprintf("DROP DATABASE \"%s\";", p.Database)
+	delete := fmt.Sprintf("DROP DATABASE \"%s\"", p.Database)
+
+	if p.ForceDelete {
+		delete = fmt.Sprintf("%s WITH (FORCE)", delete)
+	}
 
 	if p.isDbExist(ctx, admin) {
 		err := p.executeExec(ctx, "postgres", revoke, admin)
@@ -534,20 +541,32 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 	case ACCESS_TYPE_READWRITE:
 		for _, s := range schemas {
 			grantUsage := fmt.Sprintf("GRANT USAGE ON SCHEMA \"%s\" TO \"%s\"", s, user.Username)
-			grantTables := fmt.Sprintf("GRANT SELECT, INSERT, DELETE, UPDATE ON ALL TABLES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
-			defaultPrivileges := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT SELECT, INSERT, DELETE, UPDATE ON TABLES TO \"%s\";",
+			grantTables := fmt.Sprintf("GRANT SELECT, INSERT, DELETE, UPDATE, TRUNCATE ON ALL TABLES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
+			defaultPrivileges := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT SELECT, INSERT, DELETE, UPDATE, TRUNCATE ON TABLES TO \"%s\";",
 				p.MainUser.Username,
 				s,
 				user.Username,
 			)
+			grantSequences := fmt.Sprintf("GRANT UPDATE, USAGE, SELECT ON ALL SEQUENCES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
+			defaultPrivilegesSeq := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT UPDATE, USAGE, SELECT ON SEQUENCES TO \"%s\";",
+				p.MainUser.Username,
+				s,
+				user.Username,
+			)
+
 			err := p.executeExec(ctx, p.Database, grantUsage, admin)
 			if err != nil {
-				log.Error(err, "failed updating postgres user", "query", grantTables)
+				log.Error(err, "failed updating postgres user", "query", grantUsage)
 				return err
 			}
 			err = p.executeExec(ctx, p.Database, grantTables, admin)
 			if err != nil {
 				log.Error(err, "failed updating postgres user", "query", grantTables)
+				return err
+			}
+			err = p.executeExec(ctx, p.Database, grantSequences, admin)
+			if err != nil {
+				log.Error(err, "failed updating postgres user", "query", grantSequences)
 				return err
 			}
 			// If user is granted to the admin, admin can alter default privileges
@@ -558,10 +577,20 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 					log.Error(err, "failed updating postgres user", "query", defaultPrivileges)
 					return err
 				}
+				err = p.execSettingRole(ctx, p.Database, defaultPrivilegesSeq, actingUser, admin)
+				if err != nil {
+					log.Error(err, "failed updating postgres user", "query", defaultPrivilegesSeq)
+					return err
+				}
 			} else {
 				err = p.executeExec(ctx, p.Database, defaultPrivileges, admin)
 				if err != nil {
 					log.Error(err, "failed updating postgres user", "query", defaultPrivileges)
+					return err
+				}
+				err = p.executeExec(ctx, p.Database, defaultPrivilegesSeq, admin)
+				if err != nil {
+					log.Error(err, "failed updating postgres user", "query", defaultPrivilegesSeq)
 					return err
 				}
 			}
@@ -571,6 +600,12 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 			grantUsage := fmt.Sprintf("GRANT USAGE ON SCHEMA \"%s\" TO \"%s\"", s, user.Username)
 			grantTables := fmt.Sprintf("GRANT SELECT ON ALL TABLES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
 			defaultPrivileges := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT SELECT ON TABLES TO \"%s\";",
+				p.MainUser.Username,
+				s,
+				user.Username,
+			)
+			grantSequences := fmt.Sprintf("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
+			defaultPrivilegesSeq := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT USAGE, SELECT ON SEQUENCES TO \"%s\";",
 				p.MainUser.Username,
 				s,
 				user.Username,
@@ -585,16 +620,31 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 				log.Error(err, "failed updating postgres user", "query", grantTables)
 				return err
 			}
+			err = p.executeExec(ctx, p.Database, grantSequences, admin)
+			if err != nil {
+				log.Error(err, "failed updating postgres user", "query", grantTables)
+				return err
+			}
 			if p.RDSIAMImpersonateWorkaround {
 				err = p.execSettingRole(ctx, p.Database, defaultPrivileges, actingUser, admin)
 				if err != nil {
 					log.Error(err, "failed updating postgres user", "query", defaultPrivileges)
 					return err
 				}
+				err = p.execSettingRole(ctx, p.Database, defaultPrivilegesSeq, actingUser, admin)
+				if err != nil {
+					log.Error(err, "failed updating postgres user", "query", defaultPrivilegesSeq)
+					return err
+				}
 			} else {
 				err = p.executeExec(ctx, p.Database, defaultPrivileges, admin)
 				if err != nil {
 					log.Error(err, "failed updating postgres user", "query", defaultPrivileges)
+					return err
+				}
+				err = p.executeExec(ctx, p.Database, defaultPrivilegesSeq, admin)
+				if err != nil {
+					log.Error(err, "failed updating postgres user", "query", defaultPrivilegesSeq)
 					return err
 				}
 			}
@@ -614,9 +664,9 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 	return nil
 }
 
-func (p Postgres) deleteUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
-	log := log.FromContext(ctx)
+func (p Postgres) revokePermissions(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	if user.AccessType != ACCESS_TYPE_MAINUSER && p.isUserExist(ctx, admin, user) {
+		log := log.FromContext(ctx)
 		schemas := p.Schemas
 		if !p.DropPublicSchema {
 			schemas = append(schemas, "public")
@@ -643,7 +693,7 @@ func (p Postgres) deleteUser(ctx context.Context, admin *DatabaseUser, user *Dat
 				schema,
 				user.Username,
 			)
-			if err := p.executeExec(ctx, p.Database, revokeDefaults, p.MainUser); err != nil {
+			if err := p.executeExec(ctx, p.Database, revokeDefaults, admin); err != nil {
 				log.Error(err, "failed removing default privileges from schema", "username", user.Username, "schema", schema)
 				return err
 			}
@@ -657,9 +707,13 @@ func (p Postgres) deleteUser(ctx context.Context, admin *DatabaseUser, user *Dat
 				log.Error(err, "failed dropping owned", "username", user.Username)
 				return err
 			}
-
 		}
 	}
+	return nil
+}
+
+func (p Postgres) deleteUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
+	log := log.FromContext(ctx)
 	delete := fmt.Sprintf("DROP USER \"%s\";", user.Username)
 	if p.isUserExist(ctx, admin, user) {
 		err := p.executeExec(ctx, "postgres", delete, admin)

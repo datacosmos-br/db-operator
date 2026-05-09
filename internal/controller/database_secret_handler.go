@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package controllers
+package controller
 
 import (
 	"bytes"
 	"context"
 
-	kindav1beta1 "github.com/db-operator/db-operator/api/v1beta1"
-	"github.com/db-operator/db-operator/pkg/consts"
-	"github.com/sirupsen/logrus"
+	kindav1beta1 "github.com/db-operator/db-operator/v2/api/v1beta1"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
+	"log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,12 +39,12 @@ type secretEventHandler struct {
 }
 
 func (e *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	logrus.Info("Start processing Database Secret Update Event")
+	log.Println("Start processing Database Secret Update Event")
 
 	switch v := evt.ObjectNew.(type) {
 
 	default:
-		logrus.Error("database Secret Update Event error! Unknown object: type=", v.GetObjectKind(), ", name=", evt.ObjectNew.GetNamespace(), "/", evt.ObjectNew.GetName())
+		log.Println("database Secret Update Event error! Unknown object: type=", v.GetObjectKind(), ", name=", evt.ObjectNew.GetNamespace(), "/", evt.ObjectNew.GetName())
 		return
 
 	case *corev1.Secret:
@@ -55,29 +55,29 @@ func (e *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, 
 		labels := secretNew.GetLabels()
 		kind, ok := labels[consts.USED_BY_KIND_LABEL_KEY]
 		if !ok {
-			logrus.Errorf("Secret handler won't trigger reconciliation, because %s label is empty", consts.USED_BY_KIND_LABEL_KEY)
+			log.Printf("Secret handler won't trigger reconciliation, because %s label is empty", consts.USED_BY_KIND_LABEL_KEY)
 			return
 		} else if kind != "Database" {
-			logrus.Infof("Secret handler won't trigger reconciliation, because %s labels doesn't have value 'Database'", consts.USED_BY_KIND_LABEL_KEY)
+			log.Printf("Secret handler won't trigger reconciliation, because %s labels doesn't have value 'Database'", consts.USED_BY_KIND_LABEL_KEY)
 		}
 
 		dbcrName, ok := labels[consts.USED_BY_NAME_LABEL_KEY]
 		if !ok {
-			logrus.Errorf("Secret handler won't trigger reconciliation, because %s label is empty", consts.USED_BY_NAME_LABEL_KEY)
+			log.Printf("Secret handler won't trigger reconciliation, because %s label is empty", consts.USED_BY_NAME_LABEL_KEY)
 			return
 		}
 
-		logrus.Info("processing Database Secret label: name=", consts.USED_BY_NAME_LABEL_KEY, ", value=", dbcrName)
+		log.Println("processing Database Secret label: name=", consts.USED_BY_NAME_LABEL_KEY, ", value=", dbcrName)
 
 		// send Database Reconcile Request
 		dbcr := &kindav1beta1.Database{}
 		if err := e.Client.Get(ctx, types.NamespacedName{Namespace: secretNew.GetNamespace(), Name: dbcrName}, dbcr); err != nil {
-			logrus.Errorf("couldn't get the database resource: %s - %s", secretNew.GetNamespace(), dbcrName)
+			log.Printf("couldn't get the database resource: %s - %s", secretNew.GetNamespace(), dbcrName)
 			return
 		}
 
 		if dbcr.IsDeleted() {
-			logrus.Warnf("database %s has been marked for deletion, reconciliation won't be triggered", dbcrName)
+			log.Printf("database %s has been marked for deletion, reconciliation won't be triggered", dbcrName)
 			return
 		}
 
@@ -88,9 +88,9 @@ func (e *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, 
 			fullReconcile = true
 			defer func() {
 				delete(secretNew.Annotations, consts.SECRET_FORCE_RECONCILE)
-				logrus.Infof("removing annotation %s from the seecret %s", consts.SECRET_FORCE_RECONCILE, secretNew.GetName())
+				log.Printf("removing annotation %s from the seecret %s", consts.SECRET_FORCE_RECONCILE, secretNew.GetName())
 				if err := e.Client.Update(ctx, secretNew, &client.UpdateOptions{}); err != nil {
-					logrus.Errorf("couldn't remove annotation: %s", err)
+					log.Printf("couldn't remove annotation: %s", err)
 				}
 			}()
 		} else {
@@ -111,7 +111,7 @@ func (e *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, 
 				}
 
 			default:
-				logrus.Errorf("unknown database engine: %s", dbcr.Status.Engine)
+				log.Printf("unknown database engine: %s", dbcr.Status.Engine)
 			}
 
 			for _, key := range inputsKeys {
@@ -123,7 +123,7 @@ func (e *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, 
 		}
 
 		if fullReconcile {
-			logrus.Info("database Secret has been changed and related database resource will be reconciled: secret=", secretNew.Namespace, "/", secretNew.Name, ", database=", dbcrName)
+			log.Println("database Secret has been changed and related database resource will be reconciled: secret=", secretNew.Namespace, "/", secretNew.Name, ", database=", dbcrName)
 			q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: secretNew.GetNamespace(),
 				Name:      dbcrName,
@@ -133,15 +133,15 @@ func (e *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, 
 }
 
 func (e *secretEventHandler) Delete(context.Context, event.DeleteEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	logrus.Error("secretEventHandler.Delete(...) event has been FIRED but NOT implemented!")
+	log.Println("secretEventHandler.Delete(...) event has been FIRED but NOT implemented!")
 }
 
 func (e *secretEventHandler) Generic(context.Context, event.GenericEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	logrus.Error("secretEventHandler.Generic(...) event has been FIRED but NOT implemented!")
+	log.Println("secretEventHandler.Generic(...) event has been FIRED but NOT implemented!")
 }
 
 func (e *secretEventHandler) Create(context.Context, event.CreateEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	logrus.Error("secretEventHandler.Create(...) event has been FIRED but NOT implemented!")
+	log.Println("secretEventHandler.Create(...) event has been FIRED but NOT implemented!")
 }
 
 /* ------ Event Filter Functions ------ */
@@ -160,7 +160,7 @@ func isWatchedNamespace(watchNamespaces []string, ro runtime.Object) bool {
 		if isSecret {
 			objectNamespace = secret.Namespace
 		} else {
-			logrus.Info("unknown object", "object", ro)
+			log.Println("unknown object", "object", ro)
 			return false
 		}
 	}
@@ -181,11 +181,11 @@ func isDatabase(ro runtime.Object) bool {
 
 func isObjectUpdated(e event.UpdateEvent) bool {
 	if e.ObjectOld == nil {
-		logrus.Error(nil, "Update event has no old runtime object to update", "event", e)
+		log.Println(nil, "Update event has no old runtime object to update", "event", e)
 		return false
 	}
 	if e.ObjectNew == nil {
-		logrus.Error(nil, "Update event has no new runtime object for update", "event", e)
+		log.Println(nil, "Update event has no new runtime object for update", "event", e)
 		return false
 	}
 	// if object kind is a Database check that 'metadata.generation' field ('spec' section) has been changed
@@ -203,7 +203,7 @@ func isObjectUpdated(e event.UpdateEvent) bool {
 		if !ok {
 			return false // no label found
 		}
-		logrus.Info("Secret Update Event detected: secret=", secretNew.Namespace, "/", secretNew.Name, ", database=", dbcrName)
+		log.Println("Secret Update Event detected: secret=", secretNew.Namespace, "/", secretNew.Name, ", database=", dbcrName)
 		return true
 	}
 	return false // unknown object, ignore Update Event

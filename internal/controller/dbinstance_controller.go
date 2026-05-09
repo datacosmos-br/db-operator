@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package controllers
+package controller
 
 import (
 	"context"
@@ -22,11 +22,11 @@ import (
 	"strconv"
 	"time"
 
-	kindav1beta2 "github.com/db-operator/db-operator/api/v1beta2"
-	"github.com/db-operator/db-operator/pkg/config"
-	kubehelper "github.com/db-operator/db-operator/pkg/helpers/kube"
-	"github.com/db-operator/db-operator/pkg/utils/database"
-	kcidb "github.com/db-operator/db-operator/pkg/utils/database"
+	kindav1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/pkg/config"
+	kubehelper "github.com/db-operator/db-operator/v2/pkg/helpers/kube"
+	"github.com/db-operator/db-operator/v2/pkg/utils/database"
+	kcidb "github.com/db-operator/db-operator/v2/pkg/utils/database"
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"

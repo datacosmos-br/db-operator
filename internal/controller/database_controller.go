@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package controllers
+package controller
 
 import (
 	"context"
@@ -28,15 +28,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	kindav1beta2 "github.com/db-operator/db-operator/api/v1beta2"
-	"github.com/db-operator/db-operator/pkg/config"
-	"github.com/db-operator/db-operator/pkg/consts"
-	commonhelper "github.com/db-operator/db-operator/pkg/helpers/common"
-	dbhelper "github.com/db-operator/db-operator/pkg/helpers/database"
-	kubehelper "github.com/db-operator/db-operator/pkg/helpers/kube"
-	"github.com/db-operator/db-operator/pkg/helpers/templates"
-	"github.com/db-operator/db-operator/pkg/utils/database"
-	"github.com/db-operator/db-operator/pkg/utils/kci"
+	kindav1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/pkg/config"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
+	commonhelper "github.com/db-operator/db-operator/v2/pkg/helpers/common"
+	dbhelper "github.com/db-operator/db-operator/v2/pkg/helpers/database"
+	kubehelper "github.com/db-operator/db-operator/v2/pkg/helpers/kube"
+	"github.com/db-operator/db-operator/v2/pkg/helpers/templates"
+	"github.com/db-operator/db-operator/v2/pkg/utils/database"
+	"github.com/db-operator/db-operator/v2/pkg/utils/kci"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"

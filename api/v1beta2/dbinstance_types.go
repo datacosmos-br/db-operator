@@ -17,7 +17,7 @@
 package v1beta2
 
 import (
-	"github.com/db-operator/db-operator/api/common"
+	"github.com/db-operator/db-operator/v2/api/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

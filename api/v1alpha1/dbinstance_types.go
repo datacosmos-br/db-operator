@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"errors"
 
-	"github.com/db-operator/db-operator/api/v1beta1"
+	"github.com/db-operator/db-operator/v2/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
@@ -54,7 +54,7 @@ type DbInstanceStatus struct {
 }
 
 // GoogleInstance is used when instance type is Google Cloud SQL
-// and describes necessary informations to use google API to create sql instances
+// and describes necessary information to use google API to create sql instances
 type GoogleInstance struct {
 	InstanceName  string         `json:"instance"`
 	ConfigmapName NamespacedName `json:"configmapRef"`
@@ -71,7 +71,7 @@ type BackendServer struct {
 }
 
 // GenericInstance is used when instance type is generic
-// and describes necessary informations to use instance
+// and describes necessary information to use instance
 // generic instance can be any backend, it must be reachable by described address and port
 type GenericInstance struct {
 	Host     string `json:"host"`

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/db-operator/db-operator/api/v1beta1"
+	"github.com/db-operator/db-operator/v2/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +17,7 @@ func TestUnitSecretTemplatesValidator(t *testing.T) {
 		"TEMPLATE_5": "jdbc:{{ .Protocol }}://{{ .UserName }}:{{ .Password }}@{{ .DatabaseHost }}:{{ .DatabasePort }}/{{ .DatabaseName }}",
 	}
 
-	err := v1beta1.ValidateSecretTemplates(validTemplates)
+	err := v1beta2.ValidateSecretTemplates(validTemplates)
 	assert.NoErrorf(t, err, "expected no error %v", err)
 
 	invalidField := ".InvalidField"
@@ -25,7 +25,7 @@ func TestUnitSecretTemplatesValidator(t *testing.T) {
 		"TEMPLATE_1": fmt.Sprintf("{{ %s }}", invalidField),
 	}
 
-	err = v1beta1.ValidateSecretTemplates(invalidTemplates)
+	err = v1beta2.ValidateSecretTemplates(invalidTemplates)
 	assert.Errorf(t, err, "should get error %v", err)
 	assert.Contains(t, err.Error(), invalidField, "the error doesn't contain expected substring")
 	assert.Contains(t, err.Error(),

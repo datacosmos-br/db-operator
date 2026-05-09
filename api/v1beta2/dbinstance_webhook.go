@@ -24,8 +24,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/db-operator/db-operator/pkg/consts"
-	"github.com/db-operator/db-operator/pkg/helpers/kube"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
+	"github.com/db-operator/db-operator/v2/pkg/helpers/kube"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -37,9 +37,7 @@ import (
 var dbinstancelog = logf.Log.WithName("dbinstance-resource")
 
 func (r *DbInstance) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
+	return ctrl.NewWebhookManagedBy(mgr, r).Complete()
 }
 
 //+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta2-dbinstance,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbinstances,verbs=create;update,versions=v1beta2,name=vdbinstance.kb.io,admissionReviewVersions=v1

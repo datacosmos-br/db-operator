@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package controllers
+package controller
 
 import (
 	"context"
@@ -24,14 +24,14 @@ import (
 	"strconv"
 	"time"
 
-	kindav1beta2 "github.com/db-operator/db-operator/api/v1beta2"
-	"github.com/db-operator/db-operator/pkg/consts"
-	commonhelper "github.com/db-operator/db-operator/pkg/helpers/common"
-	dbhelper "github.com/db-operator/db-operator/pkg/helpers/database"
-	kubehelper "github.com/db-operator/db-operator/pkg/helpers/kube"
-	"github.com/db-operator/db-operator/pkg/helpers/templates"
-	"github.com/db-operator/db-operator/pkg/utils/database"
-	"github.com/db-operator/db-operator/pkg/utils/kci"
+	kindav1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
+	commonhelper "github.com/db-operator/db-operator/v2/pkg/helpers/common"
+	dbhelper "github.com/db-operator/db-operator/v2/pkg/helpers/database"
+	kubehelper "github.com/db-operator/db-operator/v2/pkg/helpers/kube"
+	"github.com/db-operator/db-operator/v2/pkg/helpers/templates"
+	"github.com/db-operator/db-operator/v2/pkg/utils/database"
+	"github.com/db-operator/db-operator/v2/pkg/utils/kci"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -257,8 +257,12 @@ func (r *DbUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func isDbUserChanged(dbucr *kindav1beta2.DbUser, userSecret *corev1.Secret) bool {
 	annotations := dbucr.ObjectMeta.GetAnnotations()
+	specChecksum, err := kci.GenerateChecksum(dbucr.Spec)
+	if err != nil {
+		return true
+	}
 
-	return annotations["checksum/spec"] != kci.GenerateChecksum(dbucr.Spec) ||
+	return annotations["checksum/spec"] != specChecksum ||
 		annotations["checksum/secret"] != commonhelper.GenerateChecksumSecretValue(userSecret)
 }
 

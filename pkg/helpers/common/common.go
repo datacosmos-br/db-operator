@@ -21,8 +21,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	kindav1beta2 "github.com/db-operator/db-operator/api/v1beta2"
-	"github.com/db-operator/db-operator/pkg/utils/kci"
+	kindav1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/pkg/utils/kci"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
@@ -30,8 +30,12 @@ var OperatorVersion string
 
 func IsDBChanged(dbcr *kindav1beta2.Database, databaseSecret *corev1.Secret) bool {
 	annotations := dbcr.ObjectMeta.GetAnnotations()
+	specChecksum, err := kci.GenerateChecksum(dbcr.Spec)
+	if err != nil {
+		return true
+	}
 
-	return annotations["checksum/spec"] != kci.GenerateChecksum(dbcr.Spec) ||
+	return annotations["checksum/spec"] != specChecksum ||
 		annotations["checksum/secret"] != GenerateChecksumSecretValue(databaseSecret)
 }
 
@@ -41,7 +45,11 @@ func AddDBChecksum(dbcr *kindav1beta2.Database, databaseSecret *corev1.Secret) {
 		annotations = make(map[string]string)
 	}
 
-	annotations["checksum/spec"] = kci.GenerateChecksum(dbcr.Spec)
+	specChecksum, err := kci.GenerateChecksum(dbcr.Spec)
+	if err != nil {
+		specChecksum = ""
+	}
+	annotations["checksum/spec"] = specChecksum
 	annotations["checksum/secret"] = GenerateChecksumSecretValue(databaseSecret)
 	dbcr.ObjectMeta.SetAnnotations(annotations)
 }
@@ -50,7 +58,11 @@ func GenerateChecksumSecretValue(databaseSecret *corev1.Secret) string {
 	if databaseSecret == nil || databaseSecret.Data == nil {
 		return ""
 	}
-	return kci.GenerateChecksum(databaseSecret.Data)
+	checksum, err := kci.GenerateChecksum(databaseSecret.Data)
+	if err != nil {
+		return ""
+	}
+	return checksum
 }
 
 func ContainsString(slice []string, s string) bool {

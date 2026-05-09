@@ -63,8 +63,30 @@ func UpdateUser(ctx context.Context, db Database, dbuser *DatabaseUser, admin *D
 	return nil
 }
 
+func RevokePermissions(ctx context.Context, db Database, dbuser *DatabaseUser, admin *DatabaseUser) error {
+	err := db.revokePermissions(ctx, admin, dbuser)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func SetPermissions(ctx context.Context, db Database, dbuser *DatabaseUser, admin *DatabaseUser) error {
+	err := db.setUserPermission(ctx, admin, dbuser)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func DeleteUser(ctx context.Context, db Database, dbuser *DatabaseUser, admin *DatabaseUser) error {
-	err := db.deleteUser(ctx, admin, dbuser)
+	err := db.revokePermissions(ctx, admin, dbuser)
+	if err != nil {
+		return err
+	}
+	err = db.deleteUser(ctx, admin, dbuser)
 	if err != nil {
 		return err
 	}

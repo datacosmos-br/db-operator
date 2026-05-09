@@ -27,11 +27,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	// do not delete
-	"github.com/db-operator/db-operator/pkg/utils/kci"
+	"github.com/db-operator/db-operator/v2/pkg/utils/kci"
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Mysql is a database interface, abstraced object
+// Mysql is a database interface, abstracted object
 // represents a database on mysql instance
 // can be used to execute query to mysql database
 type Mysql struct {
@@ -233,7 +233,7 @@ func (m Mysql) QueryAsUser(ctx context.Context, query string, user *DatabaseUser
 
 	var result string
 	if err := db.QueryRow(query).Scan(&result); err != nil {
-		log.Error(err, "an error occured while executing a query")
+		log.Error(err, "an error occurred while executing a query")
 		return "", err
 	}
 	return result, nil
@@ -360,6 +360,13 @@ func (m Mysql) setUserPermission(ctx context.Context, admin *DatabaseUser, user 
 		}
 	}
 
+	return nil
+}
+
+// Not implemented on mysql, but required for the interface
+func (p Mysql) revokePermissions(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
+	log.FromContext(ctx).
+		Info("Permissions can't be revoked on Mysql instance, please do it manually")
 	return nil
 }
 

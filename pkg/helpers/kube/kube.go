@@ -20,8 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/db-operator/db-operator/pkg/consts"
-	"github.com/sirupsen/logrus"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,8 +28,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	dbotypes "github.com/db-operator/db-operator/pkg/types"
+	dbotypes "github.com/db-operator/db-operator/v2/pkg/types"
 )
 
 const ERROR_CANT_CAST = "couldn't cast a caller to the client.Object"
@@ -103,15 +103,16 @@ func (kh *KubeHelper) HandleCreateOrUpdate(ctx context.Context, obj client.Objec
 
 func (kh *KubeHelper) Create(ctx context.Context, obj client.Object) (client.Object, error) {
 	err := kh.Cli.Create(ctx, obj)
+	log := log.FromContext(ctx)
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
-		logrus.Errorf("couldn't create %s %s: %s", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
+		log.Error(err, "couldn't create a Kubernetes resource", "kind", obj.GetObjectKind().GroupVersionKind().Kind, "name", obj.GetName())
 		return nil, err
 	}
 	// Return an updated object already
 	// I'm not sure how to make it better
-	var refreshedObj client.Object = obj.DeepCopyObject().(client.Object)
+	refreshedObj := obj.DeepCopyObject().(client.Object)
 	if err := kh.Cli.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, refreshedObj); err != nil {
-		logrus.Errorf("couldn't get %s %s: %s", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
+		log.Error(err, "сouldn't get a Kubernetes resource", "kind", obj.GetObjectKind().GroupVersionKind().Kind, "name", obj.GetName())
 		return nil, err
 	}
 	return refreshedObj, nil
@@ -157,7 +158,7 @@ func (kh *KubeHelper) IsUsedByCaller(obj client.Object) bool {
 
 func (kh *KubeHelper) SetOwnerReference(obj client.Object, ownerRef metav1.OwnerReference) client.Object {
 	// It's required in order to remove the owner reference
-	// that was previosly set by the cleanup feature
+	// that was previously set by the cleanup feature
 	newOwnerRefs := []metav1.OwnerReference{}
 	for _, ref := range obj.GetOwnerReferences() {
 		if ref.UID != kh.Caller.GetUID() {

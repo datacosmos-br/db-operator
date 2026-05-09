@@ -22,8 +22,8 @@ package common_test
 import (
 	"testing"
 
-	"github.com/db-operator/db-operator/pkg/helpers/common"
-	"github.com/db-operator/db-operator/pkg/utils/testutils"
+	"github.com/db-operator/db-operator/v2/pkg/helpers/common"
+	"github.com/db-operator/db-operator/v2/pkg/utils/testutils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

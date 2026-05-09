@@ -20,8 +20,9 @@ package v1beta1
 import (
 	"context"
 	"fmt"
+	"slices"
 
-	"github.com/db-operator/db-operator/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
@@ -57,6 +58,10 @@ type DbUserSpec struct {
 	// +kubebuilder:default=true
 	// +optional
 	GrantToAdmin bool `json:"grantToAdmin"`
+	// If specified, DB Operator will try to use an existing user to assign permissions
+	// User will not be removed, when a dbuser is removed, but the permissions added by the
+	// operator will be cleaned up
+	ExistingUser string `json:"existingUser,omitempty"`
 }
 
 // DbUserStatus defines the observed state of DbUser
@@ -108,10 +113,8 @@ const (
 // IsAccessTypeSupported returns an error if access type is not supported
 func IsAccessTypeSupported(wantedAccessType string) error {
 	supportedAccessTypes := []string{READONLY, READWRITE}
-	for _, supportedAccessType := range supportedAccessTypes {
-		if supportedAccessType == wantedAccessType {
-			return nil
-		}
+	if slices.Contains(supportedAccessTypes, wantedAccessType) {
+		return nil
 	}
 	return fmt.Errorf("the provided access type is not supported by the operator: %s - please choose one of these: %v",
 		wantedAccessType,

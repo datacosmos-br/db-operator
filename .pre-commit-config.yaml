@@ -1,13 +1,11 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0 # Use the ref you want to point at
+    rev: v6.0.0
     hooks:
+      - id: end-of-file-fixer
       - id: trailing-whitespace
-  - repo: https://github.com/google/yamlfmt
-    rev: v0.13.0
-    hooks:
-      - id: yamlfmt
+      - id: detect-private-key
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
       - id: codespell
