@@ -1,0 +1,21 @@
+api/v1beta2/types.go
+  s_177790736bb8d7::t_81b1fdb657405b 41
+internal/helpers/database/database_test.go
+  s_177790736bb8d7::t_05c411c010fa25 284
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "c8852b9e54d860a0b3a34dc1c1f7c3a416d326a4",
+  "prompts": {},
+  "sessions": {
+    "s_177790736bb8d7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a94f82f9-0316-455c-9e25-e7bdaf02c664",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    }
+  }
+}
