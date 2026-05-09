@@ -1,0 +1,347 @@
+test/charts/self-signed-cluster-issuer/templates/NOTES.txt
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-35
+config/samples/v1beta1_database.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-9
+pkg/utils/database/mysql.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 30,34,236,366-369
+documentation/pyproject.toml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-16
+pkg/utils/kci/password_test.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 29-30
+config/rbac/leader_election_role_binding.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-15
+config/rbac/role.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 8,10-11,20,22,24,27,29,31,42-43,56-57,64-65
+config/network-policy/allow-webhook-traffic.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-27
+config/default/cert_metrics_manager_patch.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-30
+.github/workflows/image-publish.yaml
+  s_1e31d5fc44111b::t_669f62131c9fa2 5,13,15,18,21,26,30-31,49-68,71,85,88,93,99-116
+internal/controller/suite_test.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 17,33
+build/set_image_metadata
+  s_1e31d5fc44111b::t_7e6a939f86f703 7,24,33
+pkg/config/test/config_Invalid.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 1
+test/charts/test-data/templates/configmap.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-9
+internal/controller/dbuser_controller.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 17,27-34,39,51,66,91,104-105,110,117-140,147-148,158-160,163-170,172-173,176-192,194-195,197,199-222,224-232,235-237,240-270,272-275,277-304,306-307,309-311,320,324-331,335,339,349,356,361,413-415,420,422,426,433,450,460,471,486,490,499-514
+.github/workflows/renovate-test.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-15
+pkg/helpers/templates/templates_test.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 17,23-27,33-34,65,73-74,78,86-87,94,96-103,108,110-117,124,131,136,143,148,153,158,163,174-195,197,206,223,233,245,253-264,268,282,320,334,348,355,369,383,390,404,418,424,438-440,453,467-469,483,487-488,491,497-515,529,533-534,537,539,542,544,547,549,552,554,557,580,584-585,588,590,593,598-599,602,613-669,671-675,690
+test/charts/test-data/templates/_helpers.tpl
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-6
+pkg/utils/database/postgres_test.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 22,24,56,220-222,262-266,272-276,284-286,288-290,312-314,364-368,374-378,386-388,390-392,420-422,462-466,479-481,483-485,507-509,559-563,576-578,580-582,672-675,731-760
+internal/helpers/proxy/proxy_test.go
+  ai_agent 1-114
+test/charts/self-signed-cluster-issuer/templates/issuer.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-8
+examples/db.yaml
+  ai_agent 1,5-7,10,12-15,17-19
+internal/helpers/proxy/proxy.go
+  ai_agent 1-150
+Taskfile.yml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-273
+documentation/docs/dbinstances.md
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-4,6,8,10,12,14,16-44,46,48-49,51-61,63-69,71-86,89,91-110,113,115-132,135-136,139-158,161,164,166-168,172,174-175,178-179,181,183-185,189,191-192,194-204
+pkg/backup/cronjob_test.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 24-25
+config/manager/kustomization.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-8
+pkg/utils/database/clickhouse_test.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 2,17,19-39
+internal/helpers/common/common_test.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 20,23-25,31,44-67,76-215
+pkg/utils/database/mysql_test.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 24
+documentation/zensical.toml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-52
+pkg/backup/cronjob.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 23-25
+pkg/utils/gcloud/serviceaccount_test.go
+  ai_agent 2,17,20,22,25-31,33,35-43
+config/network-policy/allow-metrics-traffic.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-27
+config/crd/bases/kinda.rocks_databases.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 6,179,201,413-414,416-441,446,466-483,566-577
+.golangci.yml
+  s_1e31d5fc44111b::t_7e6a939f86f703 1,4-24
+pkg/utils/kci/decorator.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 20
+pkg/utils/testutils/testutils.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 20-22,31-36,38-42,45,49,53-54,56-60,63,67,69,71,74,82,84,90,93
+pkg/utils/dbinstance/generic.go
+  ai_agent 1-105
+pkg/utils/database/types.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 75
+internal/controller/main.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 20
+config/certmanager/issuer.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-5,7-13
+config/crd/patches/webhook_in_databases.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 16
+pkg/utils/dbinstance/.gitignore
+  ai_agent 1
+config/webhook/manifests.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 15,55,81,161,181
+config/network-policy/kustomization.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-3
+config/samples/v1alpha1_database.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-2,4-7,9
+config/default/metrics_service.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-18
+helmfile.yaml.gotmpl
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-38,42-51,57-58,61-62,64-69,71-79,81-87,90-215,217-254,256-259,261-273
+api/v1alpha1/dbinstance_types.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 22,57,74
+config/crd/bases/kinda.rocks_dbusers.yaml
+  s_1e31d5fc44111b::t_669f62131c9fa2 6,71-72,74-99,104,123-129,155
+config/rbac/database_viewer_role.yaml
+  ai_agent 1,3-11,16,22-24
+pkg/helpers/kube/kube_suite_test.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 27-29,38,67,101,112,127,140,158,183,200,224,252,262,267,283,300,309,331,347,363,390,407,421,439,457,474
+pkg/config/config.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 22-23
+pkg/utils/database/dummy.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 107-110
+documentation/poetry.lock
+  ai_agent 1-271
+api/v1alpha1/database_types.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 22
+pkg/utils/gcloud/test/serviceaccount.json
+  ai_agent 1-12
+documentation/.gitignore
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-2
+internal/webhook/v1beta1/webhook.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 24,26,31,39,70-86
+internal/webhook/v1beta1/webhook_unit_test.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 4,7-9,13-19,31,34,43,50,52,55-277
+PROJECT
+  s_1e31d5fc44111b::t_7e6a939f86f703 16,24,31,42,55
+.pre-commit-config.yaml
+  ai_agent 3,13-21
+config/prometheus/monitor_tls_patch.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-19
+config/rbac/dbinstance_admin_role.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-27
+config/rbac/dbuser_editor_role.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 1-7,12
+pkg/utils/kci/getresource.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 28,54,66,69
+pkg/utils/kci/password.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 26,30,32,52
+pkg/utils/gcloud/serviceaccount.go
+  ai_agent 1-45
+pkg/utils/templates/secrets.go
+  ai_agent 1-166
+pkg/utils/database/postgres.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 29,36,59-61,402-406,544-551,556,559,567-571,580-584,591-595,607-612,623-627,634-638,645-649,667,669,696,712-716
+documentation/docs/index.md
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-198
+config/certmanager/certificate-webhook.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 7,12-13,15-16,20
+scripts/regenerate_kustomizations
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-43
+test/charts/self-signed-cluster-issuer/values.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-161
+config/rbac/metrics_auth_role.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-17
+config/webhook/service.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 1-2,7,17-18
+internal/controller/metrics.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 17
+pkg/utils/kci/decorator_test.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 22
+config/rbac/dbuser_admin_role.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-27
+pkg/config/test/config_ok.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 25
+examples/instance-generic.yaml
+  ai_agent 1-2,4,6-12,14-15,17-22
+config/rbac/dbinstance_viewer_role.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 1-7,12
+pkg/utils/kci/helper.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 82,85,88
+test/charts/test-data/values.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-3,5-7,9
+internal/controller/dbinstance_controller.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 17,21,25-33,35,37,39-40,43,48-55,62,67-71,79,83,101-107,111-115,117-133,135-141,143,145-146,148-149,151,153-154,156-158,160-161,163,166-193,195-203,205,207,209-224,227-248,251-262,265-266,269-327,329,332-337,340,342-359,362-441,444-482
+test/charts/self-signed-cluster-issuer/templates/ca_issuer.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-3,5,7
+config/rbac/database_admin_role.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-9,12,14-27
+config/webhook/deployment.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-108
+.github/FUNDING.yml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-15
+test/scripts/aws_rds_postgres_init.sh
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 2,5,9-12,15-16,19
+.github/workflows/test-docs.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-15
+config/default/manager_metrics_patch.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-4
+.github/workflows/repo-checks.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-28
+scripts/cleanup_dev_registry
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-20
+config/certmanager/kustomization.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 2-4
+pkg/backup/test/backup_config.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 13
+scripts/test_database
+  s_1e31d5fc44111b::t_7e6a939f86f703 8,11,15,30
+examples/instance-cloudsql.yaml
+  ai_agent 4,7-8,11,13-14,19-20,24,39,41-50
+pkg/helpers/templates/templates.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 24,26,28-31,35,37,42,45,47,62-68,70-75,80-83,85-87,89-90,127,129-130,135-138,145-146,151,162-164,180,184-185,187-188,192-198,225-233,236,290-295,300-305
+config/samples/v1alpha1_dbinstance.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-2,4-7,9
+config/rbac/dbinstance_editor_role.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 1-7,12
+config/crd/kustomization.yaml
+  s_1e31d5fc44111b::t_669f62131c9fa2 8,13-15,17
+config/rbac/role_binding.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-15
+Containerfile
+  s_1e31d5fc44111b::t_669f62131c9fa2 1,20,24-25,27-28
+internal/webhook/v1beta1/database_webhook_test.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-94
+internal/webhook/v1beta1/database_webhook.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-155
+internal/webhook/v1beta1/dbinstance_webhook_test.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-94
+test/charts/self-signed-cluster-issuer/.helmignore
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-23
+config/webhook/kustomization.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 2-3
+documentation/docs/dbuser.md
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-106
+test/charts/test-data/.helmignore
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-23
+test/charts/test-data/Chart.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-24
+internal/webhook/v1beta1/webhook_suite_test.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 22,30,37,39-41,50-52,66-71,74,76,78,82-86,92,96,99,106,110,113,116,119,127,135-136,142,146-168
+pkg/helpers/kube/kube.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 23,29,31,33,48,54,106,108,113,115,161
+renovate.json
+  s_1e31d5fc44111b::t_7e6a939f86f703 4-8
+.github/workflows/build-and-test.yaml
+  s_1e31d5fc44111b::t_669f62131c9fa2 2,6,9,14,17,20-27,33-40,46-60,65-70,73-76,78-92,97-103,106-111,113-127
+config/default/kustomization.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-270
+config/crd/patches/webhook_in_dbinstances.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 16
+.github/workflows/publish-docs.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-13,15-29
+pkg/utils/database/handler.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 66-83,85-89
+pkg/utils/proxy/create.go
+  ai_agent 1-74
+test/scripts/az_flexible_postgres_init.sh
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 2,9-12,14-17
+config/certmanager/certificate-metrics.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-20
+config/prometheus/monitor.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-27
+config/rbac/leader_election_role.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-40
+README.md
+  s_1e31d5fc44111b::t_669f62131c9fa2 3,5,7,9-12,14-19,21,23,26-27,30
+pkg/helpers/kube/kube_test.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 22-24
+go.mod
+  s_1e31d5fc44111b::t_669f62131c9fa2 1,3,5,8-9,11-14,16-30,34,36-38,41,45-47,50-52,55,57,59-60,63,65,67-71,73-77,79-95,97-100,102-103
+config/samples/kustomization.yaml
+  ai_agent 3,8-15
+config/samples/v1beta1_dbuser.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 5
+documentation/docs/database.md
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-320
+test/charts/self-signed-cluster-issuer/templates/_helpers.tpl
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-62
+config/crd/bases/kinda.rocks_dbinstances.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 6,82,104,239-243,413,449-455
+config/rbac/service_account.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-8
+documentation/README.md
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-10
+pkg/utils/dbinstance/gsql_test.go
+  ai_agent 1,6,8,11-25,27-28,30-62,64-136,138-139
+pkg/utils/dbinstance/gsql.go
+  ai_agent 1-334
+kind-config.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-13
+documentation/docs/templates.md
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-3,5,7,9-18,20-30,32,34-44,47,50-58,60-74,76-87,89-92,95-97,99,102-103,106,108-113,117-119
+config/rbac/database_editor_role.yaml
+  ai_agent 1,3-11,16,22-24
+api/v1beta1/types_test.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 6-7
+config/manager/manager.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-143
+config/default/manager_webhook_patch.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 1-2
+config/rbac/kustomization.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-33
+pkg/utils/dbinstance/service.go
+  ai_agent 1-77
+config/rbac/dbuser_viewer_role.yaml
+  s_1e31d5fc44111b::t_7e6a939f86f703 1-7,12
+pkg/test/helper.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 80-87
+internal/webhook/v1beta1/dbinstance_webhook.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-173
+internal/controller/database_controller.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 18,23-24,28,30-43,46,50,53,62,71-80,86-88,97,154-162,164,177,195-241,253,258,302,332-355,372-387,394-405,420,422,429,434,448-461,468-471,490-494,498-540,547,558-559,573,580,592,594-597,601-602,604,608,612-660,662-666,688,700,712-718,720,729-831,836-857,864,881,891,902,919-971,973,978-983,991,1001-1027,1031,1041,1045,1055-1056,1062,1064,1068,1071,1079,1096,1098,1104
+config/samples/v1beta1_dbinstance.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 5
+test/charts/self-signed-cluster-issuer/templates/ca_certificate.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-17
+config/prometheus/kustomization.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-11
+pkg/helpers/common/common.go
+  s_1e31d5fc44111b::t_669f62131c9fa2 20-22,27-29,31,36-37,39-44,48-49,54,56,63-163
+config/rbac/metrics_auth_role_binding.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-2,4-12
+internal/webhook/v1beta1/dbuser_webhook.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-120
+api/v1beta1/types.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 43,52-69,75-81
+config/rbac/metrics_reader_role.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-2,4-9
+documentation/docs/development/database_test.md
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-124
+internal/webhook/v1beta1/dbuser_webhook_test.go
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-68
+api/v1beta1/dbuser_types.go
+  s_1e31d5fc44111b::t_7e6a939f86f703 23,61-64,116-117
+go.sum
+  ai_agent 1-4,7-14,19,21,33-44,46-47,52-61,64-65,70-71,77-78,83-86,89-90,95,98-99,104-111,118-119,122-125,128,130-143,145-148,150-162,165-178,183-226,230-231,237-256,259-262
+pkg/utils/proxy/cloudproxy.go
+  ai_agent 1-213
+.containerignore
+  s_1e31d5fc44111b::t_7e6a939f86f703 7
+test/charts/self-signed-cluster-issuer/Chart.yaml
+  s_1e31d5fc44111b::t_2a3e5280bc5e68 1-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "18eba5059b860f14cc0126e7dc5af237b676eea4",
+  "prompts": {},
+  "sessions": {
+    "s_1e31d5fc44111b": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "868ee30f-1be8-4c22-af2b-04e7f96c0832",
+        "model": "unknown"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    }
+  }
+}
