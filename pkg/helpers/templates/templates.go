@@ -24,13 +24,13 @@ import (
 	"html/template"
 	"strings"
 
-	"github.com/db-operator/db-operator/api/v1beta2"
-	"github.com/db-operator/db-operator/pkg/consts"
-	"github.com/db-operator/db-operator/pkg/types"
-	"github.com/db-operator/db-operator/pkg/utils/database"
+	"github.com/db-operator/db-operator/v2/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
+	"github.com/db-operator/db-operator/v2/pkg/types"
+	"github.com/db-operator/db-operator/v2/pkg/utils/database"
 	corev1 "k8s.io/api/core/v1"
 
-	"k8s.io/utils/strings/slices"
+	"slices"
 )
 
 func (tds *TemplateDataSources) Render(templates v1beta2.Templates) error {

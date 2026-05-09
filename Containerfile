@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM registry.hub.docker.com/library/golang:1.24-alpine AS builder
+FROM --platform=$BUILDPLATFORM registry.hub.docker.com/library/golang:1.25.9-alpine3.23 AS builder
 
 ARG OPERATOR_VERSION=1.0.0-dev
 
@@ -17,21 +17,12 @@ COPY . .
 ARG TARGETARCH
 RUN GOOS=linux GOARCH=$TARGETARCH CGO_ENABLED=0 \
   go build \
-  -ldflags="-X \"github.com/db-operator/db-operator/internal/helpers/common.OperatorVersion=$OPERATOR_VERSION\"" \
+  -ldflags="-X \"github.com/db-operator/db-operator/v2/internal/helpers/common.OperatorVersion=$OPERATOR_VERSION\"" \
   -tags build -o /usr/local/bin/db-operator cmd/main.go
 
-  
-FROM registry.hub.docker.com/library/alpine:latest
-RUN uname -a
+
+FROM gcr.io/distroless/static
 LABEL org.opencontainers.image.authors="Nikolai Rodionov<allanger@badhouseplants.net>"
-
-ENV USER_UID=1001
-ENV USER_NAME=db-operator
-
-# # install operator binary
 COPY --from=builder /usr/local/bin/db-operator /usr/local/bin/db-operator
-COPY ./build/bin /usr/local/bin
-RUN /usr/local/bin/user_setup
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
-USER $USER_UID
+USER 1001
+ENTRYPOINT ["/usr/local/bin/db-operator"]

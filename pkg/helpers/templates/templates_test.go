@@ -20,9 +20,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/db-operator/db-operator/api/v1beta2"
-	consts "github.com/db-operator/db-operator/pkg/consts"
-	"github.com/db-operator/db-operator/pkg/utils/database"
+	"github.com/db-operator/db-operator/v2/api/v1beta2"
+	consts "github.com/db-operator/db-operator/v2/pkg/consts"
+	"github.com/db-operator/db-operator/v2/pkg/utils/database"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

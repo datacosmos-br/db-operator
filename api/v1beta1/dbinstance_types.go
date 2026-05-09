@@ -21,8 +21,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/db-operator/db-operator/api/common"
-	"github.com/db-operator/db-operator/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/api/common"
+	"github.com/db-operator/db-operator/v2/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"

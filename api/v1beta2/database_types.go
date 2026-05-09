@@ -19,7 +19,7 @@ package v1beta2
 import (
 	"fmt"
 
-	"github.com/db-operator/db-operator/pkg/consts"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

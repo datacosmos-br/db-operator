@@ -21,8 +21,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/db-operator/db-operator/api/v1beta2"
-	"github.com/db-operator/db-operator/pkg/consts"
+	"github.com/db-operator/db-operator/v2/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
@@ -42,9 +42,18 @@ type DatabaseSpec struct {
 	SQLServer         SQLServer         `json:"sqlserver,omitempty"`
 	Cleanup           bool              `json:"cleanup,omitempty"`
 	Credentials       Credentials       `json:"credentials,omitempty"`
-	DatabaseName      string            `json:"database,omitempty"`
-	UserName          string            `json:"user,omitempty"`
-	AllowedNamespaces []string          `json:"allowedNamespaces,omitempty"`
+	ExtraGrants       []*ExtraGrant     `json:"extraGrants,omitempty"`
+	// If specified, DB Operator will try to use an existing user to assign permissions.
+	// User will not be removed when a database is removed.
+	ExistingUser      string   `json:"existingUser,omitempty"`
+	DatabaseName      string   `json:"database,omitempty"`
+	UserName          string   `json:"user,omitempty"`
+	AllowedNamespaces []string `json:"allowedNamespaces,omitempty"`
+}
+
+type ExtraGrant struct {
+	User       string `json:"user"`
+	AccessType string `json:"accessType"`
 }
 
 // Postgres struct should be used to provide resource that only applicable to postgres
@@ -103,6 +112,7 @@ type DatabaseStatus struct {
 	UserName              string              `json:"user"`
 	Engine                string              `json:"engine"`
 	OperatorVersion       string              `json:"operatorVersion,omitempty"`
+	ExtraGrants           []*ExtraGrant       `json:"extraGrants,omitempty"`
 }
 
 // DatabaseProxyStatus defines whether proxy for database is enabled or not

@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"k8s.io/utils/strings/slices"
+	"slices"
 )
 
 var (

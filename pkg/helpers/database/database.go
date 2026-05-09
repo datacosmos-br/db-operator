@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"strconv"
 
-	kindav1beta2 "github.com/db-operator/db-operator/api/v1beta2"
-	"github.com/db-operator/db-operator/pkg/consts"
-	"github.com/db-operator/db-operator/pkg/utils/database"
-	"github.com/db-operator/db-operator/pkg/utils/kci"
+	kindav1beta2 "github.com/db-operator/db-operator/v2/api/v1beta2"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
+	"github.com/db-operator/db-operator/v2/pkg/utils/database"
+	"github.com/db-operator/db-operator/v2/pkg/utils/kci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -164,7 +164,10 @@ func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName str
 	if dbUser == "" {
 		dbUser = objectMeta.Namespace + "-" + objectMeta.Name
 	}
-	dbPassword := kci.GeneratePass()
+	dbPassword, err := kci.GeneratePass()
+	if err != nil {
+		return nil, err
+	}
 
 	switch engine {
 	case "postgres":

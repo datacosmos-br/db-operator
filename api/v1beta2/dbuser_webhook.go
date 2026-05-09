@@ -23,7 +23,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/db-operator/db-operator/pkg/consts"
+	"github.com/db-operator/db-operator/v2/pkg/consts"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -35,9 +35,7 @@ import (
 var dbuserlog = logf.Log.WithName("dbuser-resource")
 
 func (r *DbUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
+	return ctrl.NewWebhookManagedBy(mgr, r).Complete()
 }
 
 //+kubebuilder:webhook:path=/validate-kinda-rocks-v1beta1-dbuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=kinda.rocks,resources=dbusers,verbs=create;update,versions=v1beta1,name=vdbuser.kb.io,admissionReviewVersions=v1

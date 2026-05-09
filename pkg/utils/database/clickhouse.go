@@ -283,6 +283,22 @@ func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser,
 	return nil
 }
 
+func (ch ClickHouse) revokePermissions(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
+	log := log.FromContext(ctx)
+	revoke := fmt.Sprintf("REVOKE ALL ON `%s`.* FROM '%s'", ch.Database, user.Username)
+
+	if ch.ClusterName != "" {
+		revoke += fmt.Sprintf(" ON CLUSTER '%s'", ch.ClusterName)
+	}
+
+	if err := ch.executeExec(ctx, ch.Database, revoke, admin); err != nil {
+		log.Error(err, "failed revoking privileges from ClickHouse user")
+		return err
+	}
+
+	return nil
+}
+
 func (ch ClickHouse) deleteUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
 	drop := fmt.Sprintf("DROP USER IF EXISTS '%s'", user.Username)
