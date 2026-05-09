@@ -22,8 +22,9 @@ import (
 	"errors"
 	"fmt"
 
+	// Register the "clickhouse" sql driver
+	_ "github.com/ClickHouse/clickhouse-go"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	// Don't delete below package. Used for driver "clickhouse"
 )
 
 // ClickHouse is a database interface, abstracted object
