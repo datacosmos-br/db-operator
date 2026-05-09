@@ -1,0 +1,30 @@
+pkg/utils/database/clickhouse.go
+  s_1e31d5fc44111b::t_dd6843a3e1a7ff 25-26
+go.mod
+  s_1e31d5fc44111b::t_b20506105cb1da 42,45
+pkg/utils/database/clickhouse_test.go
+  h_5cf852cc46bf92 1-22
+go.sum
+  ai_agent 9-10,15,18-19,53,82,97,102,116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "49486ea96a21da8c0b3014fbedbfb3d879adfcf1",
+  "prompts": {},
+  "humans": {
+    "h_5cf852cc46bf92": {
+      "author": "FLEXT Bot <team@flext.sh>"
+    }
+  },
+  "sessions": {
+    "s_1e31d5fc44111b": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "868ee30f-1be8-4c22-af2b-04e7f96c0832",
+        "model": "unknown"
+      },
+      "human_author": "FLEXT Bot <team@flext.sh>"
+    }
+  }
+}
