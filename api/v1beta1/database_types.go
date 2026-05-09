@@ -18,14 +18,11 @@
 package v1beta1
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/db-operator/db-operator/v2/api/v1beta2"
 	"github.com/db-operator/db-operator/v2/pkg/consts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 // DatabaseSpec defines the desired state of Database
@@ -36,19 +33,14 @@ type DatabaseSpec struct {
 	Backup            DatabaseBackup    `json:"backup"`
 	SecretsTemplates  map[string]string `json:"secretsTemplates,omitempty"`
 	Postgres          Postgres          `json:"postgres,omitempty"`
-	MongoDB           MongoDB           `json:"mongodb,omitempty"`
 	Clickhouse        Clickhouse        `json:"clickhouse,omitempty"`
-	Oracle            Oracle            `json:"oracle,omitempty"`
-	SQLServer         SQLServer         `json:"sqlserver,omitempty"`
 	Cleanup           bool              `json:"cleanup,omitempty"`
 	Credentials       Credentials       `json:"credentials,omitempty"`
 	ExtraGrants       []*ExtraGrant     `json:"extraGrants,omitempty"`
-	// If specified, DB Operator will try to use an existing user to assign permissions.
-	// User will not be removed when a database is removed.
-	ExistingUser      string   `json:"existingUser,omitempty"`
-	DatabaseName      string   `json:"database,omitempty"`
-	UserName          string   `json:"user,omitempty"`
-	AllowedNamespaces []string `json:"allowedNamespaces,omitempty"`
+	// If specified, DB Operator will try to use an existing user to assign permissions
+	// User will not be removed, when a database is removed, but the permissions added by the
+	// operator will be cleaned up
+	ExistingUser string `json:"existingUser,omitempty"`
 }
 
 type ExtraGrant struct {
@@ -67,38 +59,10 @@ type Postgres struct {
 	Template string `json:"template,omitempty"`
 }
 
-// MongoDB struct should be used to provide resource that only applicable to MongoDB
-type MongoDB struct {
-	Collections []string `json:"collections,omitempty"`
-	Sharding    bool     `json:"sharding,omitempty"`
-}
-
-// Clickhouse struct should be used to provide resource that only applicable to Clickhouse
+// Clickhouse struct should be used to provide resource that only applicable to ClickHouse
 type Clickhouse struct {
-	Cluster string `json:"clusterName,omitempty"`
-	// Shard name for distributed tables
-	Shard string `json:"shard,omitempty"`
-
-	// Replication factor for tables
-	ReplicationFactor int `json:"replicationFactor,omitempty"`
-
-	// Engine type for the ClickHouse database (e.g., MergeTree, ReplicatedMergeTree)
-	Engine string `json:"engine,omitempty"`
-
-	// Additional settings that might be necessary for ClickHouse configuration
-	Settings map[string]string `json:"settings,omitempty"`
-}
-
-// Oracle struct should be used to provide resource that only applicable to Oracle
-type Oracle struct {
-	Tablespaces []string `json:"tablespaces,omitempty"`
-	Profiles    []string `json:"profiles,omitempty"`
-}
-
-// SQLServer struct should be used to provide resource that only applicable to SQLServer
-type SQLServer struct {
-	Schemas []string `json:"schemas,omitempty"`
-	Roles   []string `json:"roles,omitempty"`
+	// ClusterName is the name of the ClickHouse cluster (used for ON CLUSTER queries)
+	ClusterName string `json:"clusterName,omitempty"`
 }
 
 // DatabaseStatus defines the observed state of Database
@@ -137,7 +101,7 @@ type DatabaseBackup struct {
 // +kubebuilder:printcolumn:name="DBInstance",type=string,JSONPath=`.spec.instance`,description="instance reference"
 // +kubebuilder:printcolumn:name="OperatorVersion",type=string,JSONPath=`.status.operatorVersion`,description="db-operator version of last full reconcile"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description="time since creation of resource"
-
+// +kubebuilder:storageversion
 // Database is the Schema for the databases API
 type Database struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -160,74 +124,13 @@ func init() {
 	SchemeBuilder.Register(&Database{}, &DatabaseList{})
 }
 
-// ValidateExistingDatabase checks if there's an existing database for the same instance in any namespace
-func (db *Database) ValidateExistingDatabase(ctx context.Context, c client.Client) error {
-	var dbList DatabaseList
-	if err := c.List(ctx, &dbList); err != nil {
-		return err
-	}
-
-	// Determine the database name to use for the current Database object
-	databaseName := db.Spec.DatabaseName
-	if databaseName == "" {
-		databaseName = fmt.Sprintf("%s-%s", db.Namespace, db.Name)
-	}
-
-	for _, existingDB := range dbList.Items {
-		// Determine the database name to use for the existing Database object
-		existingDatabaseName := existingDB.Spec.DatabaseName
-		if existingDatabaseName == "" {
-			existingDatabaseName = fmt.Sprintf("%s-%s", existingDB.Namespace, existingDB.Name)
-		}
-
-		if existingDB.Spec.Instance == db.Spec.Instance && existingDatabaseName == databaseName && existingDB.Name != db.Name {
-			return fmt.Errorf("a database for instance %s with name %s already exists in namespace %s", db.Spec.Instance, databaseName, existingDB.Namespace)
-		}
-	}
-
-	return nil
-}
-
-// ValidateNamespace checks if the database is in an allowed namespace
-func (db *Database) ValidateNamespace() error {
-	if db.Spec.AllowedNamespaces == nil {
-		db.Spec.AllowedNamespaces = []string{db.Namespace}
-	}
-
-	for _, ns := range db.Spec.AllowedNamespaces {
-		if ns == db.Namespace {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("namespace %s is not allowed", db.Namespace)
-}
-
-// ValidateDbUserNamespace checks if the namespace of the DbUser is allowed in the referenced Database
-func (db *Database) ValidateDbUserNamespace(userNamespace string) error {
-	for _, ns := range db.Spec.AllowedNamespaces {
-		if ns == userNamespace {
-			return nil
-		}
-	}
-	return fmt.Errorf("namespace %s is not allowed for the user", userNamespace)
-}
-
-// GetProtocol returns the protocol that is required for connection (postgresql, mysql, mongodb, clickhouse, oracle, sqlserver)
+// GetProtocol returns the protocol that is required for connection (postgresql or mysql)
 func (db *Database) GetProtocol() (string, error) {
 	switch db.Status.Engine {
 	case consts.ENGINE_POSTGRES:
 		return "postgresql", nil
 	case consts.ENGINE_MYSQL:
 		return db.Status.Engine, nil
-	case consts.ENGINE_MONGODB:
-		return "mongodb", nil
-	case consts.ENGINE_CLICKHOUSE:
-		return "clickhouse", nil
-	case consts.ENGINE_ORACLE:
-		return "oracle", nil
-	case consts.ENGINE_SQLSERVER:
-		return "sqlserver", nil
 	default:
 		return "", fmt.Errorf("unknown engine %s", db.Status.Engine)
 	}
@@ -254,67 +157,15 @@ func (db *Database) InstanceAccessSecretName() string {
 	return "dbin-" + db.Spec.Instance + "-access-secret"
 }
 
+func (extraGrant *ExtraGrant) IsExtraGrant(extraGrants []*ExtraGrant) bool {
+	for _, existingExtraGrant := range extraGrants {
+		if existingExtraGrant.User == extraGrant.User &&
+			existingExtraGrant.AccessType == extraGrant.AccessType {
+			return true
+		}
+	}
+	return false
+}
+
 // Function to mark the Database as a hub
 func (db *Database) Hub() {}
-
-// ConvertTo converts this v1beta1 to v1beta2. (upgrade)
-func (db *Database) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta2.Database)
-	var newTemplates v1beta2.Templates
-	for _, oldTemplate := range db.Spec.Credentials.Templates {
-		newTemplates = append(newTemplates, &v1beta2.Template{
-			Name:     oldTemplate.Name,
-			Template: oldTemplate.Template,
-		})
-	}
-
-	dst.ObjectMeta = db.ObjectMeta
-	dst.Spec = v1beta2.DatabaseSpec{
-		Instance:          db.Spec.Instance,
-		DeletionProtected: db.Spec.DeletionProtected,
-		Postgres: v1beta2.Postgres{
-			Extensions:       db.Spec.Postgres.Extensions,
-			DropPublicSchema: db.Spec.Postgres.DropPublicSchema,
-			Schemas:          db.Spec.Postgres.Schemas,
-			Params: v1beta2.PostgresDatabaseParams{
-				Template: db.Spec.Postgres.Template,
-			},
-		},
-		Credentials: v1beta2.Credentials{
-			SecretName:        db.Spec.SecretName,
-			SetOwnerReference: db.Spec.Cleanup,
-			Templates:         newTemplates,
-		},
-	}
-	return nil
-}
-
-// ConvertFrom converts from the Hub version (v1beta2) to (v1beta1). (downgrade)
-func (dst *Database) ConvertFrom(srcRaw conversion.Hub) error {
-	db := srcRaw.(*v1beta2.Database)
-	var newTemplates Templates
-	for _, oldTemplate := range db.Spec.Credentials.Templates {
-		newTemplates = append(newTemplates, &Template{
-			Name:     oldTemplate.Name,
-			Template: oldTemplate.Template,
-		})
-	}
-
-	dst.ObjectMeta = db.ObjectMeta
-	dst.Spec = DatabaseSpec{
-		SecretName:        db.Spec.Credentials.SecretName,
-		Instance:          db.Spec.Instance,
-		DeletionProtected: db.Spec.DeletionProtected,
-		Postgres: Postgres{
-			Extensions:       db.Spec.Postgres.Extensions,
-			DropPublicSchema: db.Spec.Postgres.DropPublicSchema,
-			Schemas:          db.Spec.Postgres.Schemas,
-			Template:         db.Spec.Postgres.Params.Template,
-		},
-		Cleanup: db.Spec.Credentials.SetOwnerReference,
-		Credentials: Credentials{
-			Templates: newTemplates,
-		},
-	}
-	return nil
-}
