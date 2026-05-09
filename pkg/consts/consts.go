@@ -72,6 +72,9 @@ const (
 	// Delete a postgres database with present connections,
 	// might be useful when pgbouncer is used
 	POSTGRES_FORCE_DELETE_DB = "kinda.rocks/postgres-force-delete-db"
+	// When this annotation is set to "true" on a DbInstance, the operator allows
+	// changing the connection data even if the instance is already connected.
+	DBINSTANCE_ALLOW_MIGRATION = "kinda.rocks/db-instance-allow-migration"
 )
 
 // Kubernetes Labels
