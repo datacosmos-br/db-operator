@@ -1,0 +1,29 @@
+api/v1beta1/dbinstance_types.go
+  s_1e31d5fc44111b::t_bebc97e53a3112 163
+pkg/utils/database/clickhouse_test.go
+  h_5cf852cc46bf92 1-20
+go.mod
+  s_1e31d5fc44111b::t_bebc97e53a3112 38,42
+internal/helpers/database/database.go
+  s_1e31d5fc44111b::t_bebc97e53a3112 116-125,175-192,242-246
+  h_5cf852cc46bf92 193-194
+api/v1beta1/database_types.go
+  s_1e31d5fc44111b::t_bebc97e53a3112 36,62-65
+pkg/utils/dbinstance/generic.go
+  s_1e31d5fc44111b::t_bebc97e53a3112 60-66
+pkg/consts/consts.go
+  s_1e31d5fc44111b::t_bebc97e53a3112 23-31,36-38
+pkg/utils/database/handler.go
+  s_1e31d5fc44111b::t_bebc97e53a3112 104-105
+api/v1beta1/zz_generated.deepcopy.go
+  h_5cf852cc46bf92 564-567
+  s_1e31d5fc44111b::t_bebc97e53a3112 201,553-563
+pkg/utils/database/clickhouse.go
+  h_5cf852cc46bf92 1-318
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "eb62b30f5300a555d2d72a3732bd8814e8a072df",
+  "prompts": {}
+}
