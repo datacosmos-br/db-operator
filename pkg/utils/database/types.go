@@ -44,15 +44,27 @@ type DatabaseUser struct {
 	// user is revoked from rds_iam, hence it should
 	// happen while it's being deleted
 	GrantToAdminOnDelete bool
-	// CHQuota and CHSettings are ClickHouse-only RBAC settings; nil/empty for
-	// other engines. Kept as package-local types so this package does not
-	// depend on api/v1beta1.
-	CHQuota    *CHQuota
-	CHSettings map[string]string
+	// The following fields are currently honored only by the ClickHouse
+	// engine; they are zero/nil for other engines. Types are kept
+	// package-local so this package does not depend on api/v1beta1.
+	Quota    *Quota
+	Settings map[string]string
+	// HostRegexp restricts the user to client hosts matching this host
+	// pattern. Empty means no restriction.
+	HostRegexp string
+	// ExtraGrants are extra privilege grants applied to the user beyond the
+	// per-database grant (e.g. cluster-wide or system-table privileges).
+	ExtraGrants []Grant
 }
 
-// CHQuota is a ClickHouse per-user resource quota. A limit of 0 is not enforced.
-type CHQuota struct {
+// Grant is a privilege grant: GRANT <Privileges> ON <On> TO user.
+type Grant struct {
+	Privileges string
+	On         string
+}
+
+// Quota is a per-user resource quota. A limit of 0 is not enforced.
+type Quota struct {
 	IntervalSeconds         int64
 	MaxQueries              int64
 	MaxResultRows           int64

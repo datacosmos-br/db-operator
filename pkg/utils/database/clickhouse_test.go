@@ -307,11 +307,13 @@ func TestClickhouseRBAC(t *testing.T) {
 	ch.Database = "ch_rbac_db"
 	admin := getClickhouseAdmin()
 	user := &DatabaseUser{
-		Username:   "ch_rbac_user",
-		Password:   "p",
-		AccessType: ACCESS_TYPE_READWRITE,
-		CHQuota:    &CHQuota{IntervalSeconds: 3600, MaxQueries: 500, MaxResultRows: 100000},
-		CHSettings: map[string]string{"max_memory_usage": "2000000"},
+		Username:    "ch_rbac_user",
+		Password:    "p",
+		AccessType:  ACCESS_TYPE_READWRITE,
+		Quota:       &Quota{IntervalSeconds: 3600, MaxQueries: 500, MaxResultRows: 100000},
+		Settings:    map[string]string{"max_memory_usage": "2000000"},
+		HostRegexp:  "test_host_.*",
+		ExtraGrants: []Grant{{Privileges: "SELECT(cluster)", On: "system.clusters"}},
 	}
 	cleanup := func() {
 		_ = ch.deleteUser(context.TODO(), admin, user)
@@ -330,11 +332,24 @@ func TestClickhouseRBAC(t *testing.T) {
 			"SELECT name FROM system.settings_profiles WHERE name = 'dbo_profile_ch_rbac_user'",
 			admin.Username, admin.Password)
 	}
+	hostRestricted := func() bool {
+		return ch.isRowExist(context.TODO(), "default",
+			"SELECT name FROM system.users WHERE name = 'ch_rbac_user' AND has(host_names_regexp, 'test_host_.*')",
+			admin.Username, admin.Password)
+	}
+	extraGrantExists := func() bool {
+		return ch.isRowExist(context.TODO(), "default",
+			"SELECT user_name FROM system.grants WHERE user_name = 'ch_rbac_user' "+
+				"AND access_type = 'SELECT' AND database = 'system' AND table = 'clusters' AND column = 'cluster'",
+			admin.Username, admin.Password)
+	}
 
 	assert.NoError(t, ch.createDatabase(context.TODO(), admin))
 	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, user))
 	assert.True(t, quotaExists(), "quota should exist after createOrUpdateUser")
 	assert.True(t, profileExists(), "settings profile should exist after createOrUpdateUser")
+	assert.True(t, hostRestricted(), "HOST REGEXP should be applied after createOrUpdateUser")
+	assert.True(t, extraGrantExists(), "extra grant should exist after createOrUpdateUser")
 
 	// CREATE ... OR REPLACE keeps a re-reconcile idempotent.
 	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, user))
@@ -344,6 +359,7 @@ func TestClickhouseRBAC(t *testing.T) {
 	assert.NoError(t, ch.revokePermissions(context.TODO(), admin, user))
 	assert.False(t, quotaExists(), "quota should be dropped after revoke")
 	assert.False(t, profileExists(), "settings profile should be dropped after revoke")
+	assert.False(t, extraGrantExists(), "extra grant should be revoked after revoke")
 }
 
 // ---- Multi-node cluster tests (run via `task clickhouse-cluster-test`) ----
