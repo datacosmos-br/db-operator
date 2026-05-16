@@ -86,6 +86,8 @@ func (ch ClickHouse) getDbConn(dbname, user, password string) (*sql.DB, error) {
 	}), nil
 }
 
+// executeExec runs a statement as the admin user. The context is honored, so a
+// caller may attach per-query ClickHouse settings via clickhouse.Context.
 func (ch ClickHouse) executeExec(ctx context.Context, database, query string, admin *DatabaseUser) error {
 	log := log.FromContext(ctx)
 	db, err := ch.getDbConn(database, admin.Username, admin.Password)
@@ -95,7 +97,7 @@ func (ch ClickHouse) executeExec(ctx context.Context, database, query string, ad
 	}
 
 	defer db.Close()
-	_, err = db.Exec(query)
+	_, err = db.ExecContext(ctx, query)
 
 	return err
 }
@@ -205,19 +207,26 @@ func (ch ClickHouse) createDatabase(ctx context.Context, admin *DatabaseUser) er
 	log := log.FromContext(ctx)
 
 	create := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`%s", ch.Database, ch.onCluster())
+	execCtx := ctx
 	if ch.Replicated {
 		if ch.ClusterName == "" {
 			return errors.New("clickhouse: replicated database requires clusterName to be set")
 		}
 		// {shard}/{replica} are ClickHouse macros, substituted per node from
 		// each server's <macros> config — emitted as literal strings, not
-		// interpolated by the operator. The Replicated database engine is GA
-		// since ClickHouse 25.x, so no experimental setting is required.
+		// interpolated by the operator.
 		create += fmt.Sprintf(" ENGINE = Replicated('%s', '{shard}', '{replica}')", ch.zooKeeperPath())
+		// The Replicated database engine is experimental on ClickHouse 24.x and
+		// GA from 25.x. Enabling the setting works across the whole supported
+		// range — it is an accepted no-op where the engine is already GA. The
+		// setting is scoped to this one statement via clickhouse.Context.
+		execCtx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+			"allow_experimental_database_replicated": 1,
+		}))
 	}
 
 	if !ch.isDbExist(ctx, admin) {
-		if err := ch.executeExec(ctx, "default", create, admin); err != nil {
+		if err := ch.executeExec(execCtx, "default", create, admin); err != nil {
 			log.Error(err, "failed creating ClickHouse database")
 			return err
 		}

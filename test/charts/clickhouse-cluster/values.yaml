@@ -6,6 +6,10 @@ image:
   repository: clickhouse/clickhouse-server
   tag: "26.3"
 
+# ClickHouse Keeper is infrastructure, kept at a fixed modern version
+# independent of the server version under test — a newer Keeper serves older
+# ClickHouse servers, and old Keeper builds reject coordination settings the
+# current Altinity operator emits.
 keeperImage:
   repository: clickhouse/clickhouse-keeper
   tag: "26.3"
