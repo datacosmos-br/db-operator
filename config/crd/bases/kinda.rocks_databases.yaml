@@ -390,6 +390,17 @@ spec:
                     description: ClusterName is the name of the ClickHouse cluster
                       (used for ON CLUSTER queries)
                     type: string
+                  replicated:
+                    default: false
+                    description: |-
+                      Replicated, when true and clusterName is set, creates the database with
+                      ENGINE = Replicated so DDL auto-replicates across the cluster via ClickHouse Keeper.
+                    type: boolean
+                  zooKeeperPath:
+                    description: |-
+                      ZooKeeperPath overrides the Keeper/ZooKeeper znode path for a Replicated
+                      database. Defaults to /clickhouse/databases/<database> when empty.
+                    type: string
                 type: object
               credentials:
                 description: Credentials should be used to setup everything relates
