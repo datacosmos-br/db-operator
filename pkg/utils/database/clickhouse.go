@@ -282,17 +282,45 @@ func (ch ClickHouse) updateUser(ctx context.Context, admin *DatabaseUser, user *
 	return nil
 }
 
+// clickhouseGrantPrivileges maps an access type to the ClickHouse privilege
+// list granted on the database. readWrite covers data read/write plus table
+// management within the database; ClickHouse expands CREATE/DROP into their
+// sub-privileges automatically.
+func clickhouseGrantPrivileges(accessType string) (string, error) {
+	switch accessType {
+	case ACCESS_TYPE_READONLY:
+		return "SELECT", nil
+	case ACCESS_TYPE_READWRITE:
+		return "SELECT, INSERT, ALTER, CREATE, DROP", nil
+	case ACCESS_TYPE_MAINUSER:
+		return "ALL", nil
+	default:
+		return "", fmt.Errorf("unknown access type: %s", accessType)
+	}
+}
+
 func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	grant := fmt.Sprintf("GRANT ALL ON `%s`.* TO '%s'", ch.Database, user.Username)
 
-	if ch.ClusterName != "" {
-		grant += fmt.Sprintf(" ON CLUSTER '%s'", ch.ClusterName)
+	privileges, err := clickhouseGrantPrivileges(user.AccessType)
+	if err != nil {
+		return err
 	}
-
+	grant := fmt.Sprintf("GRANT%s %s ON `%s`.* TO '%s'",
+		ch.onCluster(), privileges, ch.Database, user.Username)
 	if err := ch.executeExec(ctx, ch.Database, grant, admin); err != nil {
 		log.Error(err, "failed granting privileges to ClickHouse user")
 		return err
+	}
+
+	// ExtraPrivileges are pre-existing RBAC roles — the operator grants them
+	// but never creates them (consistent with the postgres/mysql engines).
+	for _, role := range user.ExtraPrivileges {
+		grantRole := fmt.Sprintf("GRANT%s %s TO '%s'", ch.onCluster(), role, user.Username)
+		if err := ch.executeExec(ctx, ch.Database, grantRole, admin); err != nil {
+			log.Error(err, "failed granting role to ClickHouse user", "role", role)
+			return err
+		}
 	}
 
 	return nil
@@ -304,15 +332,23 @@ func (ch ClickHouse) revokePermissions(ctx context.Context, admin *DatabaseUser,
 		return nil
 	}
 
-	revoke := fmt.Sprintf("REVOKE ALL ON `%s`.* FROM '%s'", ch.Database, user.Username)
-
-	if ch.ClusterName != "" {
-		revoke += fmt.Sprintf(" ON CLUSTER '%s'", ch.ClusterName)
+	privileges, err := clickhouseGrantPrivileges(user.AccessType)
+	if err != nil {
+		return err
 	}
-
+	revoke := fmt.Sprintf("REVOKE%s %s ON `%s`.* FROM '%s'",
+		ch.onCluster(), privileges, ch.Database, user.Username)
 	if err := ch.executeExec(ctx, ch.Database, revoke, admin); err != nil {
 		log.Error(err, "failed revoking privileges from ClickHouse user")
 		return err
+	}
+
+	for _, role := range user.ExtraPrivileges {
+		revokeRole := fmt.Sprintf("REVOKE%s %s FROM '%s'", ch.onCluster(), role, user.Username)
+		if err := ch.executeExec(ctx, ch.Database, revokeRole, admin); err != nil {
+			log.Error(err, "failed revoking role from ClickHouse user", "role", role)
+			return err
+		}
 	}
 
 	return nil
