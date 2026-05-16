@@ -1,0 +1,53 @@
+name: Upstream sync
+
+# Maintenance workflow (not the release action): on a schedule it checks
+# db-operator/db-operator @ main and, when it has new commits, opens a pull
+# request into our main. main has diverged (rewritten history + ClickHouse),
+# so the sync is always reviewed and conflict-resolved through the PR — never
+# auto-merged.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # push the upstream-sync branch
+  pull-requests: write # open the sync PR
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # All values used in the script come from env, never interpolated
+      # straight into the shell.
+      - name: Open a sync PR when upstream has new commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_URL: https://github.com/db-operator/db-operator.git
+        run: |
+          set -euo pipefail
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch --quiet upstream main
+
+          if git merge-base --is-ancestor upstream/main origin/main; then
+            echo "main already contains upstream/main — nothing to sync"
+            exit 0
+          fi
+
+          # Keep the upstream-sync branch tracking upstream/main verbatim;
+          # the PR carries the actual integration into main.
+          git push --force origin "refs/remotes/upstream/main:refs/heads/upstream-sync"
+
+          open=$(gh pr list --base main --head upstream-sync --state open --json number --jq 'length')
+          if [ "$open" = "0" ]; then
+            gh pr create --base main --head upstream-sync \
+              --title "chore: sync upstream/main" \
+              --body "Automated sync of db-operator/db-operator @ main into our main. Review and resolve conflicts before merging — do not auto-merge."
+          else
+            echo "a sync PR is already open"
+          fi
