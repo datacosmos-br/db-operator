@@ -21,6 +21,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -323,7 +325,79 @@ func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser,
 		}
 	}
 
+	if err := ch.applyQuota(ctx, admin, user); err != nil {
+		log.Error(err, "failed applying ClickHouse quota")
+		return err
+	}
+	if err := ch.applySettingsProfile(ctx, admin, user); err != nil {
+		log.Error(err, "failed applying ClickHouse settings profile")
+		return err
+	}
+
 	return nil
+}
+
+// chQuotaName / chProfileName build deterministic names for the operator-managed
+// RBAC objects so they can be created (OR REPLACE) and dropped idempotently.
+func chQuotaName(user string) string   { return "dbo_quota_" + user }
+func chProfileName(user string) string { return "dbo_profile_" + user }
+
+// applyQuota creates (OR REPLACE) the user's resource quota. No-op when the
+// user has no quota configured.
+func (ch ClickHouse) applyQuota(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
+	if user.CHQuota == nil {
+		return nil
+	}
+	q := user.CHQuota
+	limits := []string{}
+	if q.MaxQueries > 0 {
+		limits = append(limits, fmt.Sprintf("MAX queries = %d", q.MaxQueries))
+	}
+	if q.MaxResultRows > 0 {
+		limits = append(limits, fmt.Sprintf("MAX result_rows = %d", q.MaxResultRows))
+	}
+	if q.MaxExecutionTimeSeconds > 0 {
+		limits = append(limits, fmt.Sprintf("MAX execution_time = %d", q.MaxExecutionTimeSeconds))
+	}
+	stmt := fmt.Sprintf("CREATE QUOTA OR REPLACE %s%s FOR INTERVAL %d SECOND",
+		chQuotaName(user.Username), ch.onCluster(), q.IntervalSeconds)
+	if len(limits) > 0 {
+		stmt += " " + strings.Join(limits, ", ")
+	}
+	stmt += fmt.Sprintf(" TO '%s'", user.Username)
+	return ch.executeExec(ctx, ch.Database, stmt, admin)
+}
+
+// applySettingsProfile creates (OR REPLACE) a settings profile from the user's
+// settings and assigns it. No-op when the user has no settings configured.
+func (ch ClickHouse) applySettingsProfile(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
+	if len(user.CHSettings) == 0 {
+		return nil
+	}
+	parts := make([]string, 0, len(user.CHSettings))
+	for k, v := range user.CHSettings {
+		parts = append(parts, fmt.Sprintf("%s = %s", k, v))
+	}
+	sort.Strings(parts) // deterministic SQL across reconciles
+	create := fmt.Sprintf("CREATE SETTINGS PROFILE OR REPLACE %s%s SETTINGS %s",
+		chProfileName(user.Username), ch.onCluster(), strings.Join(parts, ", "))
+	if err := ch.executeExec(ctx, ch.Database, create, admin); err != nil {
+		return err
+	}
+	assign := fmt.Sprintf("ALTER USER '%s'%s SETTINGS PROFILE %s",
+		user.Username, ch.onCluster(), chProfileName(user.Username))
+	return ch.executeExec(ctx, ch.Database, assign, admin)
+}
+
+// dropRBACObjects removes the operator-managed quota and settings profile of a
+// user. Safe to call unconditionally — both statements use IF EXISTS.
+func (ch ClickHouse) dropRBACObjects(ctx context.Context, admin *DatabaseUser, username string) error {
+	dropQuota := fmt.Sprintf("DROP QUOTA IF EXISTS %s%s", chQuotaName(username), ch.onCluster())
+	if err := ch.executeExec(ctx, ch.Database, dropQuota, admin); err != nil {
+		return err
+	}
+	dropProfile := fmt.Sprintf("DROP SETTINGS PROFILE IF EXISTS %s%s", chProfileName(username), ch.onCluster())
+	return ch.executeExec(ctx, ch.Database, dropProfile, admin)
 }
 
 func (ch ClickHouse) revokePermissions(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
@@ -351,6 +425,11 @@ func (ch ClickHouse) revokePermissions(ctx context.Context, admin *DatabaseUser,
 		}
 	}
 
+	if err := ch.dropRBACObjects(ctx, admin, user.Username); err != nil {
+		log.Error(err, "failed dropping ClickHouse RBAC objects")
+		return err
+	}
+
 	return nil
 }
 
@@ -370,8 +449,15 @@ func (ch ClickHouse) execAsUser(ctx context.Context, query string, user *Databas
 
 func (ch ClickHouse) deleteUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	drop := fmt.Sprintf("DROP USER IF EXISTS '%s'%s", user.Username, ch.onCluster())
 
+	// DROP USER removes grants but not named quotas/profiles — clean them up
+	// explicitly so the generated-user delete path leaves nothing behind.
+	if err := ch.dropRBACObjects(ctx, admin, user.Username); err != nil {
+		log.Error(err, "failed dropping ClickHouse RBAC objects")
+		return err
+	}
+
+	drop := fmt.Sprintf("DROP USER IF EXISTS '%s'%s", user.Username, ch.onCluster())
 	if err := ch.executeExec(ctx, "default", drop, admin); err != nil {
 		log.Error(err, "failed deleting ClickHouse user")
 		return err
