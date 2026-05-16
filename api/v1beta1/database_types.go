@@ -132,12 +132,15 @@ func init() {
 	SchemeBuilder.Register(&Database{}, &DatabaseList{})
 }
 
-// GetProtocol returns the protocol that is required for connection (postgresql or mysql)
+// GetProtocol returns the protocol that is required for connection (postgresql, mysql or clickhouse)
 func (db *Database) GetProtocol() (string, error) {
 	switch db.Status.Engine {
 	case consts.ENGINE_POSTGRES:
 		return "postgresql", nil
 	case consts.ENGINE_MYSQL:
+		return db.Status.Engine, nil
+	case consts.ENGINE_CLICKHOUSE:
+		// "clickhouse" is also the DSN scheme of the clickhouse-go v2 driver.
 		return db.Status.Engine, nil
 	default:
 		return "", fmt.Errorf("unknown engine %s", db.Status.Engine)
