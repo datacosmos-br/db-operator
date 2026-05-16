@@ -118,6 +118,10 @@ func (v *DatabaseCustomValidator) ValidateCreate(_ context.Context, obj *kindaro
 		}
 	}
 
+	if err := validateClickhouseDatabase(obj.Spec.Clickhouse); err != nil {
+		return warnings, err
+	}
+
 	return warnings, nil
 }
 
@@ -173,7 +177,25 @@ func (v *DatabaseCustomValidator) ValidateUpdate(_ context.Context, oldObj, newO
 		}
 	}
 
+	if err := validateClickhouseDatabase(newObj.Spec.Clickhouse); err != nil {
+		return warnings, err
+	}
+
 	return warnings, nil
+}
+
+// validateClickhouseDatabase validates the ClickHouse-specific block of a
+// Database: the main user's HOST REGEXP and extra privilege grants.
+func validateClickhouseDatabase(ch kindarocksv1beta1.Clickhouse) error {
+	if err := validateClickhouseHostRegexp(ch.HostRegexp); err != nil {
+		return err
+	}
+	for _, g := range ch.ExtraGrants {
+		if err := validateClickhouseGrant(g); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type Database.

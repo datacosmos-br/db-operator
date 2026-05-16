@@ -71,6 +71,25 @@ type Clickhouse struct {
 	// database. Defaults to /clickhouse/databases/<database> when empty.
 	// +optional
 	ZooKeeperPath string `json:"zooKeeperPath,omitempty"`
+	// HostRegexp restricts the database's main user to client hosts whose name
+	// matches this ClickHouse HOST REGEXP pattern. Empty means no restriction.
+	// +optional
+	HostRegexp string `json:"hostRegexp,omitempty"`
+	// ExtraGrants are additional privilege grants applied to the main user
+	// beyond the per-database grant — e.g. cluster-wide privileges
+	// (REMOTE, CLUSTER ON *.*) or system-table grants.
+	// +optional
+	ExtraGrants []ClickhouseGrant `json:"extraGrants,omitempty"`
+}
+
+// ClickhouseGrant is an extra ClickHouse privilege grant for a user, rendered
+// as: GRANT <privileges> ON <on> TO <user>.
+type ClickhouseGrant struct {
+	// Privileges is the comma-separated ClickHouse privilege list,
+	// e.g. "REMOTE, CLUSTER" or "SELECT(cluster)".
+	Privileges string `json:"privileges"`
+	// On is the grant target, e.g. "*.*" or "system.clusters".
+	On string `json:"on"`
 }
 
 // DatabaseStatus defines the observed state of Database
