@@ -17,6 +17,8 @@ package v1beta1
 import (
 	"context"
 	"errors"
+	"fmt"
+	"regexp"
 	"strings"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -68,6 +70,9 @@ func (v *DbUserCustomValidator) ValidateCreate(_ context.Context, obj *kindarock
 	if err := kindarocksv1beta1.IsAccessTypeSupported(obj.Spec.AccessType); err != nil {
 		return warnings, err
 	}
+	if err := ValidateClickhouseUser(obj.Spec.Clickhouse); err != nil {
+		return warnings, err
+	}
 
 	return warnings, nil
 }
@@ -92,6 +97,9 @@ func (v *DbUserCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj
 	if err := kindarocksv1beta1.IsAccessTypeSupported(newObj.Spec.AccessType); err != nil {
 		return warnings, err
 	}
+	if err := ValidateClickhouseUser(newObj.Spec.Clickhouse); err != nil {
+		return warnings, err
+	}
 	if newObj.Spec.Credentials.Templates != nil {
 		if err := ValidateTemplates(newObj.Spec.Credentials.Templates, false); err != nil {
 			return warnings, err
@@ -114,6 +122,36 @@ func TestExtraPrivileges(privileges []string) error {
 	for _, privilege := range privileges {
 		if strings.ToUpper(privilege) == consts.ALL_PRIVILEGES {
 			return errors.New("it's not allowed to grant ALL PRIVILEGES")
+		}
+		// Role/privilege names are interpolated into DDL by the engines —
+		// reject characters that could break out of an identifier.
+		if strings.ContainsAny(privilege, "'\";`\n") {
+			return fmt.Errorf("extra privilege contains a forbidden character: %s", privilege)
+		}
+	}
+	return nil
+}
+
+// chSettingValue matches values safe to interpolate into a ClickHouse
+// SETTINGS clause: numbers and identifier-like tokens.
+var chSettingValue = regexp.MustCompile(`^[a-zA-Z0-9_.\-]+$`)
+
+// ValidateClickhouseUser validates the ClickHouse-specific RBAC block of a
+// DbUser. ClickHouse RBAC DDL is built with fmt.Sprintf (DDL cannot be
+// parameterized), so settings keys/values must be tightly constrained.
+func ValidateClickhouseUser(ch *kindarocksv1beta1.ClickhouseUser) error {
+	if ch == nil {
+		return nil
+	}
+	if ch.Quota != nil && ch.Quota.IntervalSeconds <= 0 {
+		return errors.New("clickhouse.quota.intervalSeconds must be positive")
+	}
+	for k, v := range ch.Settings {
+		if !isValidIdentifier(k) {
+			return fmt.Errorf("clickhouse.settings key is not a valid identifier: %s", k)
+		}
+		if !chSettingValue.MatchString(v) {
+			return fmt.Errorf("clickhouse.settings value for %q is not allowed: %s", k, v)
 		}
 	}
 	return nil
