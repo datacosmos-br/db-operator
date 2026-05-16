@@ -123,6 +123,10 @@ tasks:
     desc: Run mysql tests
     cmd: go test -count=1 -tags tests -run "TestMysql" ./... -v -cover
 
+  clickhouse-test:
+    desc: Run clickhouse tests
+    cmd: go test -count=1 -tags tests -run "TestClickhouse" ./... -v -cover
+
   kubernetes-test:
     desc: Run kubernetes integration tests
     deps:
