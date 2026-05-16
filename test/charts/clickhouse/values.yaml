@@ -1,0 +1,15 @@
+# Default values for the ClickHouse test chart.
+
+image:
+  repository: clickhouse/clickhouse-server
+  tag: "24.3"
+  pullPolicy: IfNotPresent
+
+# Credentials applied to the built-in `default` user.
+auth:
+  password: qwertyu9
+
+service:
+  nodePort: 30900
+
+resources: {}

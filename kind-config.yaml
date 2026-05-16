@@ -11,3 +11,5 @@ nodes:
     hostPort: 30432
   - containerPort: 30306
     hostPort: 30306
+  - containerPort: 30900
+    hostPort: 30900
