@@ -1,15 +1,15 @@
-# Default values for the ClickHouse test chart.
+# Default values for the single-node ClickHouse test chart.
+# The chart declares a ClickHouseInstallation; the Altinity operator (installed
+# separately) reconciles it.
 
 image:
   repository: clickhouse/clickhouse-server
-  tag: "24.3"
-  pullPolicy: IfNotPresent
+  tag: "26.3"
 
 # Credentials applied to the built-in `default` user.
 auth:
   password: qwertyu9
 
+# NodePort for the ClickHouse service (native protocol).
 service:
   nodePort: 30900
-
-resources: {}

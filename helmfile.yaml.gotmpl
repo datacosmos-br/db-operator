@@ -24,11 +24,18 @@ environments:
             ssl:
               enabled: false
               skipVerify: false
+          clickhouseOperator:
+            # The Altinity operator is required by both the single-node and the
+            # cluster ClickHouse test installations.
+            installed: {{ if or (eq (env "CLICKHOUSE_INSTALL") "true") (eq (env "CLICKHOUSE_CLUSTER_INSTALL") "true") }}true{{ else }}false{{ end }}
           clickhouse:
             installed: {{ env "CLICKHOUSE_INSTALL" | default false }}
             password: {{ env "CLICKHOUSE_PASSWORD" | default "qwertyu9" }}
-            nodePort: 30900
-            imageTag: {{ env "CLICKHOUSE_VERSION" | default "24.3" }}
+            imageTag: {{ env "CLICKHOUSE_VERSION" | default "26.3" }}
+          clickhouseCluster:
+            installed: {{ env "CLICKHOUSE_CLUSTER_INSTALL" | default false }}
+            password: {{ env "CLICKHOUSE_PASSWORD" | default "qwertyu9" }}
+            imageTag: {{ env "CLICKHOUSE_VERSION" | default "26.3" }}
       - monitoring:
           installed: false
           grafana:
@@ -54,6 +61,8 @@ repositories:
     oci: true
   - name: minio-standalone
     url: https://charts.min.io/
+  - name: altinity
+    url: https://helm.altinity.com/
 
 releases:
   - name: cert-manager
@@ -178,17 +187,39 @@ releases:
         - ssl_key_file=/pg/certs/tls.key
       {{- end }}
 
+  # Altinity ClickHouse operator — reconciles the ClickHouseInstallation /
+  # ClickHouseKeeperInstallation resources declared by the test charts below.
+  - name: clickhouse-operator
+    namespace: kube-system
+    chart: altinity/altinity-clickhouse-operator
+    version: 0.27.0
+    installed: {{ .Values.databases.clickhouseOperator.installed }}
+
   - name: clickhouse-instance
     namespace: databases
     chart: ./test/charts/clickhouse
     installed: {{ .Values.databases.clickhouse.installed }}
+    needs:
+      - kube-system/clickhouse-operator
     values:
       - image:
           tag: {{ .Values.databases.clickhouse.imageTag | quote }}
       - auth:
           password: {{ .Values.databases.clickhouse.password }}
-      - service:
-          nodePort: {{ .Values.databases.clickhouse.nodePort }}
+
+  - name: clickhouse-cluster
+    namespace: databases
+    chart: ./test/charts/clickhouse-cluster
+    installed: {{ .Values.databases.clickhouseCluster.installed }}
+    needs:
+      - kube-system/clickhouse-operator
+    values:
+      - image:
+          tag: {{ .Values.databases.clickhouseCluster.imageTag | quote }}
+        keeperImage:
+          tag: {{ .Values.databases.clickhouseCluster.imageTag | quote }}
+      - auth:
+          password: {{ .Values.databases.clickhouseCluster.password }}
 
   - name: prometheus-stack
     namespace: monitoring

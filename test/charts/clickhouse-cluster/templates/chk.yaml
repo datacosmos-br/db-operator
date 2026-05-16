@@ -1,0 +1,23 @@
+# ClickHouse Keeper ensemble (1 node) managed by the Altinity operator.
+apiVersion: clickhouse-keeper.altinity.com/v1
+kind: ClickHouseKeeperInstallation
+metadata:
+  name: clickhouse-keeper
+spec:
+  configuration:
+    clusters:
+      - name: keeper
+        layout:
+          replicasCount: 1
+    settings:
+      keeper_server/tcp_port: "2181"
+  templates:
+    podTemplates:
+      - name: keeper
+        spec:
+          containers:
+            - name: clickhouse-keeper
+              image: "{{ .Values.keeperImage.repository }}:{{ .Values.keeperImage.tag }}"
+  defaults:
+    templates:
+      podTemplate: keeper

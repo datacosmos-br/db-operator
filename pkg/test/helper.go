@@ -121,3 +121,12 @@ func GetClickhouseAdminPassword() string {
 	}
 	return "test1234"
 }
+
+// GetClickhouseClusterName returns the ClickHouse cluster name used by cluster
+// tests. It must match the cluster declared in the test ClickHouseInstallation.
+func GetClickhouseClusterName() string {
+	if value, ok := os.LookupEnv("CLICKHOUSE_CLUSTER"); ok {
+		return value
+	}
+	return "dbo-cluster"
+}
