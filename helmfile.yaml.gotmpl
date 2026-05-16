@@ -24,6 +24,11 @@ environments:
             ssl:
               enabled: false
               skipVerify: false
+          clickhouse:
+            installed: {{ env "CLICKHOUSE_INSTALL" | default false }}
+            password: {{ env "CLICKHOUSE_PASSWORD" | default "qwertyu9" }}
+            nodePort: 30900
+            imageTag: {{ env "CLICKHOUSE_VERSION" | default "24.3" }}
       - monitoring:
           installed: false
           grafana:
@@ -172,6 +177,18 @@ releases:
         - -c
         - ssl_key_file=/pg/certs/tls.key
       {{- end }}
+
+  - name: clickhouse-instance
+    namespace: databases
+    chart: ./test/charts/clickhouse
+    installed: {{ .Values.databases.clickhouse.installed }}
+    values:
+      - image:
+          tag: {{ .Values.databases.clickhouse.imageTag | quote }}
+      - auth:
+          password: {{ .Values.databases.clickhouse.password }}
+      - service:
+          nodePort: {{ .Values.databases.clickhouse.nodePort }}
 
   - name: prometheus-stack
     namespace: monitoring

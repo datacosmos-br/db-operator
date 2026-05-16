@@ -1,0 +1,6 @@
+apiVersion: v2
+name: clickhouse
+description: A minimal ClickHouse server for db-operator integration tests
+type: application
+version: 0.1.0
+appVersion: "24.3"

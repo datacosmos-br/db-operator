@@ -85,3 +85,39 @@ func GetPostgresAdminUsername() string {
 	}
 	return "postgres"
 }
+
+// GetClickhouseHost set clickhouse host which used by unit test
+func GetClickhouseHost() string {
+	if value, ok := os.LookupEnv("CLICKHOUSE_HOST"); ok {
+		return value
+	}
+	return "127.0.0.1"
+}
+
+// GetClickhousePort set clickhouse native port which used by unit test
+func GetClickhousePort() uint16 {
+	if value, ok := os.LookupEnv("CLICKHOUSE_PORT"); ok {
+		port, err := strconv.ParseUint(value, 10, 16)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return uint16(port)
+	}
+	return 9000
+}
+
+// GetClickhouseAdminUsername set clickhouse admin username which used by unit test
+func GetClickhouseAdminUsername() string {
+	if value, ok := os.LookupEnv("CLICKHOUSE_USER"); ok {
+		return value
+	}
+	return "default"
+}
+
+// GetClickhouseAdminPassword set clickhouse admin password which used by unit test
+func GetClickhouseAdminPassword() string {
+	if value, ok := os.LookupEnv("CLICKHOUSE_PASSWORD"); ok {
+		return value
+	}
+	return "test1234"
+}
