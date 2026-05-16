@@ -211,6 +211,19 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		dbuser.AccessType = dbusercr.Spec.AccessType
 		dbuser.Password = creds.Password
 		dbuser.Username = creds.Username
+
+		// ClickHouse-only RBAC settings (quota / settings profile)
+		if dbcr.Status.Engine == "clickhouse" && dbusercr.Spec.Clickhouse != nil {
+			dbuser.CHSettings = dbusercr.Spec.Clickhouse.Settings
+			if q := dbusercr.Spec.Clickhouse.Quota; q != nil {
+				dbuser.CHQuota = &database.CHQuota{
+					IntervalSeconds:         q.IntervalSeconds,
+					MaxQueries:              q.MaxQueries,
+					MaxResultRows:           q.MaxResultRows,
+					MaxExecutionTimeSeconds: q.MaxExecutionTimeSeconds,
+				}
+			}
+		}
 		// If allow existing is set to true, db-operator will not force user creation
 		// and also when a user with that property is removed, user won't be removed
 		// from the database, instead only the permissions will be revoked

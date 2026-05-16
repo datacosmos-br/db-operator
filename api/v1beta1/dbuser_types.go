@@ -54,6 +54,37 @@ type DbUserSpec struct {
 	// User will not be removed, when a dbuser is removed, but the permissions added by the
 	// operator will be cleaned up
 	ExistingUser string `json:"existingUser,omitempty"`
+	// Clickhouse holds ClickHouse-specific RBAC settings for the user.
+	// Has no effect on other engines.
+	// +optional
+	Clickhouse *ClickhouseUser `json:"clickhouse,omitempty"`
+}
+
+// ClickhouseUser holds ClickHouse-specific RBAC settings applied to a DbUser.
+type ClickhouseUser struct {
+	// Quota defines a per-user resource quota managed by the operator.
+	// +optional
+	Quota *ClickhouseQuota `json:"quota,omitempty"`
+	// Settings are applied to the user through a managed SETTINGS PROFILE.
+	// +optional
+	Settings map[string]string `json:"settings,omitempty"`
+}
+
+// ClickhouseQuota defines a ClickHouse resource quota for a user.
+// A limit of 0 means it is not enforced.
+type ClickhouseQuota struct {
+	// IntervalSeconds is the quota accounting interval.
+	// +kubebuilder:validation:Minimum=1
+	IntervalSeconds int64 `json:"intervalSeconds"`
+	// MaxQueries caps the number of queries in the interval.
+	// +optional
+	MaxQueries int64 `json:"maxQueries,omitempty"`
+	// MaxResultRows caps the number of result rows in the interval.
+	// +optional
+	MaxResultRows int64 `json:"maxResultRows,omitempty"`
+	// MaxExecutionTimeSeconds caps total query execution time in the interval.
+	// +optional
+	MaxExecutionTimeSeconds int64 `json:"maxExecutionTimeSeconds,omitempty"`
 }
 
 // DbUserStatus defines the observed state of DbUser

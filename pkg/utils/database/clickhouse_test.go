@@ -299,3 +299,47 @@ func TestClickhouseAccessTypes(t *testing.T) {
 	assert.Error(t, ch.execAsUser(context.TODO(),
 		"CREATE TABLE ch_access_db.t3 (id Int32) ENGINE = MergeTree ORDER BY id", rwUser))
 }
+
+func TestClickhouseRBAC(t *testing.T) {
+	ch, _ := testClickhouse()
+	ch.Database = "ch_rbac_db"
+	admin := getClickhouseAdmin()
+	user := &DatabaseUser{
+		Username:   "ch_rbac_user",
+		Password:   "p",
+		AccessType: ACCESS_TYPE_READWRITE,
+		CHQuota:    &CHQuota{IntervalSeconds: 3600, MaxQueries: 500, MaxResultRows: 100000},
+		CHSettings: map[string]string{"max_memory_usage": "2000000"},
+	}
+	cleanup := func() {
+		_ = ch.deleteUser(context.TODO(), admin, user)
+		_ = ch.deleteDatabase(context.TODO(), admin)
+	}
+	cleanup()
+	defer cleanup()
+
+	quotaExists := func() bool {
+		return ch.isRowExist(context.TODO(), "default",
+			"SELECT name FROM system.quotas WHERE name = 'dbo_quota_ch_rbac_user'",
+			admin.Username, admin.Password)
+	}
+	profileExists := func() bool {
+		return ch.isRowExist(context.TODO(), "default",
+			"SELECT name FROM system.settings_profiles WHERE name = 'dbo_profile_ch_rbac_user'",
+			admin.Username, admin.Password)
+	}
+
+	assert.NoError(t, ch.createDatabase(context.TODO(), admin))
+	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, user))
+	assert.True(t, quotaExists(), "quota should exist after createOrUpdateUser")
+	assert.True(t, profileExists(), "settings profile should exist after createOrUpdateUser")
+
+	// CREATE ... OR REPLACE keeps a re-reconcile idempotent.
+	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, user))
+	assert.True(t, quotaExists())
+
+	// revokePermissions drops the operator-managed RBAC objects.
+	assert.NoError(t, ch.revokePermissions(context.TODO(), admin, user))
+	assert.False(t, quotaExists(), "quota should be dropped after revoke")
+	assert.False(t, profileExists(), "settings profile should be dropped after revoke")
+}
