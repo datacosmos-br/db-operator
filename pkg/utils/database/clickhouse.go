@@ -268,10 +268,19 @@ func (ch ClickHouse) createOrUpdateUser(ctx context.Context, admin *DatabaseUser
 	return nil
 }
 
+// hostClause returns a " HOST REGEXP '<pattern>'" clause restricting which
+// client hosts the user may connect from, or an empty string when unrestricted.
+func hostClause(user *DatabaseUser) string {
+	if user.HostRegexp != "" {
+		return fmt.Sprintf(" HOST REGEXP '%s'", user.HostRegexp)
+	}
+	return ""
+}
+
 func (ch ClickHouse) createUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	create := fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'%s IDENTIFIED BY '%s'",
-		user.Username, ch.onCluster(), user.Password)
+	create := fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'%s IDENTIFIED BY '%s'%s",
+		user.Username, ch.onCluster(), user.Password, hostClause(user))
 
 	if err := ch.executeExec(ctx, "default", create, admin); err != nil {
 		log.Error(err, "failed creating ClickHouse user")
@@ -283,8 +292,8 @@ func (ch ClickHouse) createUser(ctx context.Context, admin *DatabaseUser, user *
 
 func (ch ClickHouse) updateUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	update := fmt.Sprintf("ALTER USER '%s'%s IDENTIFIED BY '%s'",
-		user.Username, ch.onCluster(), user.Password)
+	update := fmt.Sprintf("ALTER USER '%s'%s IDENTIFIED BY '%s'%s",
+		user.Username, ch.onCluster(), user.Password, hostClause(user))
 
 	if err := ch.executeExec(ctx, "default", update, admin); err != nil {
 		log.Error(err, "failed updating ClickHouse user")
@@ -335,6 +344,17 @@ func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser,
 		}
 	}
 
+	// ExtraGrants are explicit privilege grants beyond the per-database grant,
+	// e.g. cluster-wide (REMOTE, CLUSTER ON *.*) or system-table privileges.
+	for _, g := range user.ExtraGrants {
+		grant := fmt.Sprintf("GRANT%s %s ON %s TO '%s'",
+			ch.onCluster(), g.Privileges, g.On, user.Username)
+		if err := ch.executeExec(ctx, ch.Database, grant, admin); err != nil {
+			log.Error(err, "failed granting extra privilege to ClickHouse user", "on", g.On)
+			return err
+		}
+	}
+
 	if err := ch.applyQuota(ctx, admin, user); err != nil {
 		log.Error(err, "failed applying ClickHouse quota")
 		return err
@@ -355,10 +375,10 @@ func chProfileName(user string) string { return "dbo_profile_" + user }
 // applyQuota creates (OR REPLACE) the user's resource quota. No-op when the
 // user has no quota configured.
 func (ch ClickHouse) applyQuota(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
-	if user.CHQuota == nil {
+	if user.Quota == nil {
 		return nil
 	}
-	q := user.CHQuota
+	q := user.Quota
 	limits := []string{}
 	if q.MaxQueries > 0 {
 		limits = append(limits, fmt.Sprintf("MAX queries = %d", q.MaxQueries))
@@ -381,11 +401,11 @@ func (ch ClickHouse) applyQuota(ctx context.Context, admin *DatabaseUser, user *
 // applySettingsProfile creates (OR REPLACE) a settings profile from the user's
 // settings and assigns it. No-op when the user has no settings configured.
 func (ch ClickHouse) applySettingsProfile(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
-	if len(user.CHSettings) == 0 {
+	if len(user.Settings) == 0 {
 		return nil
 	}
-	parts := make([]string, 0, len(user.CHSettings))
-	for k, v := range user.CHSettings {
+	parts := make([]string, 0, len(user.Settings))
+	for k, v := range user.Settings {
 		parts = append(parts, fmt.Sprintf("%s = %s", k, v))
 	}
 	sort.Strings(parts) // deterministic SQL across reconciles
@@ -425,6 +445,15 @@ func (ch ClickHouse) revokePermissions(ctx context.Context, admin *DatabaseUser,
 	if err := ch.executeExec(ctx, ch.Database, revoke, admin); err != nil {
 		log.Error(err, "failed revoking privileges from ClickHouse user")
 		return err
+	}
+
+	for _, g := range user.ExtraGrants {
+		revoke := fmt.Sprintf("REVOKE%s %s ON %s FROM '%s'",
+			ch.onCluster(), g.Privileges, g.On, user.Username)
+		if err := ch.executeExec(ctx, ch.Database, revoke, admin); err != nil {
+			log.Error(err, "failed revoking extra privilege from ClickHouse user", "on", g.On)
+			return err
+		}
 	}
 
 	for _, role := range user.ExtraPrivileges {
