@@ -1,0 +1,25 @@
+api/v1beta1/zz_generated.deepcopy.go
+  s_3daa39ec945ed1::t_9236017c90b89e 41-54
+go.mod
+  s_3daa39ec945ed1::t_9f6977c367ed9b 9
+config/crd/bases/kinda.rocks_databases.yaml
+  s_3daa39ec945ed1::t_9236017c90b89e 385-393
+go.sum
+  ai_agent 19-20,23-24,66,94,112,119,136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "7fbc2a9d699b2ef200cd931ae7dae9f6d77be768",
+  "prompts": {},
+  "sessions": {
+    "s_3daa39ec945ed1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d996e49c-d9fc-41b9-b4af-d7645e88a355",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Marlon Costa <marlonsc@gmail.com>"
+    }
+  }
+}

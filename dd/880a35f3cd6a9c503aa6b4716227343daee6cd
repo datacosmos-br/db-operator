@@ -1,0 +1,42 @@
+test/charts/clickhouse/.helmignore
+  s_3daa39ec945ed1::t_3f52153e971c12 1-12
+kind-config.yaml
+  s_3daa39ec945ed1::t_3065fedf3b0159 14-15
+test/charts/clickhouse/values.yaml
+  s_3daa39ec945ed1::t_51e9a8727984f9 1-15
+pkg/utils/database/clickhouse_test.go
+  s_3daa39ec945ed1::t_967b41c2273871 19-26,29-161,166,168-191,193-198,200-202,204-246
+  s_3daa39ec945ed1::t_2ff1fad2b20838 192,199,203
+  s_3daa39ec945ed1::t_7e6fb1f1ce017f 162-165,167
+.github/workflows/build-and-test.yaml
+  s_3daa39ec945ed1::t_f90334763415a6 128-159
+Taskfile.yml
+  s_3daa39ec945ed1::t_dde41e1e0fbe88 126-129
+test/charts/clickhouse/Chart.yaml
+  s_3daa39ec945ed1::t_dc8d1adf4871f5 1-6
+test/charts/clickhouse/templates/service.yaml
+  s_3daa39ec945ed1::t_f31fa9abfa61b1 1-15
+helmfile.yaml.gotmpl
+  s_3daa39ec945ed1::t_eab98ca8757d27 181-192
+  s_3daa39ec945ed1::t_22c4ae70c26440 27-31
+test/charts/clickhouse/templates/deployment.yaml
+  s_3daa39ec945ed1::t_e8ed6904ff1f66 1-46
+pkg/test/helper.go
+  s_3daa39ec945ed1::t_ae6db8e4d3b305 88-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "dd880a35f3cd6a9c503aa6b4716227343daee6cd",
+  "prompts": {},
+  "sessions": {
+    "s_3daa39ec945ed1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d996e49c-d9fc-41b9-b4af-d7645e88a355",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Marlon Costa <marlonsc@gmail.com>"
+    }
+  }
+}
