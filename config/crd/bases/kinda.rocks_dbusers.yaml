@@ -67,6 +67,45 @@ spec:
                 type: string
               cleanup:
                 type: boolean
+              clickhouse:
+                description: |-
+                  Clickhouse holds ClickHouse-specific RBAC settings for the user.
+                  Has no effect on other engines.
+                properties:
+                  quota:
+                    description: Quota defines a per-user resource quota managed by
+                      the operator.
+                    properties:
+                      intervalSeconds:
+                        description: IntervalSeconds is the quota accounting interval.
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      maxExecutionTimeSeconds:
+                        description: MaxExecutionTimeSeconds caps total query execution
+                          time in the interval.
+                        format: int64
+                        type: integer
+                      maxQueries:
+                        description: MaxQueries caps the number of queries in the
+                          interval.
+                        format: int64
+                        type: integer
+                      maxResultRows:
+                        description: MaxResultRows caps the number of result rows
+                          in the interval.
+                        format: int64
+                        type: integer
+                    required:
+                    - intervalSeconds
+                    type: object
+                  settings:
+                    additionalProperties:
+                      type: string
+                    description: Settings are applied to the user through a managed
+                      SETTINGS PROFILE.
+                    type: object
+                type: object
               credentials:
                 description: Credentials should be used to setup everything relates
                   to k8s secrets and configmaps
