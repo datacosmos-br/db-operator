@@ -21,9 +21,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
-	// Register the "clickhouse" sql driver
-	_ "github.com/ClickHouse/clickhouse-go"
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -39,14 +39,22 @@ type ClickHouse struct {
 
 // Internal helpers, these functions are not part for the `Database` interface
 
+// getDbConn opens a database/sql handle through the clickhouse-go v2 driver.
+// OpenDB never returns an error; connection failures surface on first query,
+// matching the previous sql.Open behaviour. The (*sql.DB, error) signature is
+// kept so callers stay unchanged.
 func (ch ClickHouse) getDbConn(dbname, user, password string) (*sql.DB, error) {
-	dataSourceName := fmt.Sprintf("tcp://%s:%d?database=%s&username=%s&password=%s", ch.Host, ch.Port, dbname, user, password)
-	db, err := sql.Open("clickhouse", dataSourceName)
-	if err != nil {
-		return nil, fmt.Errorf("sql.Open: %v", err)
-	}
-
-	return db, err
+	db := clickhouse.OpenDB(&clickhouse.Options{
+		Addr: []string{fmt.Sprintf("%s:%d", ch.Host, ch.Port)},
+		Auth: clickhouse.Auth{
+			Database: dbname,
+			Username: user,
+			Password: password,
+		},
+		Protocol:    clickhouse.Native,
+		DialTimeout: 30 * time.Second,
+	})
+	return db, nil
 }
 
 func (ch ClickHouse) executeExec(ctx context.Context, database, query string, admin *DatabaseUser) error {
