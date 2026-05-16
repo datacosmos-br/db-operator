@@ -244,3 +244,58 @@ func TestClickhouseDeleteDatabase(t *testing.T) {
 	// deleteDatabase is idempotent (DROP DATABASE IF EXISTS).
 	assert.NoError(t, ch.deleteDatabase(context.TODO(), admin))
 }
+
+// TestUnitClickhouseGrantPrivileges is a pure unit test (no ClickHouse needed).
+func TestUnitClickhouseGrantPrivileges(t *testing.T) {
+	cases := map[string]string{
+		ACCESS_TYPE_READONLY:  "SELECT",
+		ACCESS_TYPE_READWRITE: "SELECT, INSERT, ALTER, CREATE, DROP",
+		ACCESS_TYPE_MAINUSER:  "ALL",
+	}
+	for accessType, want := range cases {
+		got, err := clickhouseGrantPrivileges(accessType)
+		assert.NoError(t, err)
+		assert.Equal(t, want, got)
+	}
+	_, err := clickhouseGrantPrivileges("bogus")
+	assert.Error(t, err)
+}
+
+func TestClickhouseAccessTypes(t *testing.T) {
+	ch, _ := testClickhouse()
+	ch.Database = "ch_access_db"
+	admin := getClickhouseAdmin()
+
+	roUser := &DatabaseUser{Username: "ch_ro_user", Password: "p", AccessType: ACCESS_TYPE_READONLY}
+	rwUser := &DatabaseUser{Username: "ch_rw_user", Password: "p", AccessType: ACCESS_TYPE_READWRITE}
+	cleanup := func() {
+		_ = ch.deleteUser(context.TODO(), admin, roUser)
+		_ = ch.deleteUser(context.TODO(), admin, rwUser)
+		_ = ch.deleteDatabase(context.TODO(), admin)
+	}
+	cleanup()
+	defer cleanup()
+
+	assert.NoError(t, ch.createDatabase(context.TODO(), admin))
+	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, roUser))
+	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, rwUser))
+
+	createTable := "CREATE TABLE ch_access_db.t (id Int32) ENGINE = MergeTree ORDER BY id"
+	// readWrite has CREATE — readOnly does not.
+	assert.NoError(t, ch.execAsUser(context.TODO(), createTable, rwUser))
+	assert.Error(t, ch.execAsUser(context.TODO(),
+		"CREATE TABLE ch_access_db.t2 (id Int32) ENGINE = MergeTree ORDER BY id", roUser))
+
+	// Both access types can SELECT.
+	for _, u := range []*DatabaseUser{roUser, rwUser} {
+		res, err := ch.QueryAsUser(context.TODO(),
+			"SELECT name FROM system.tables WHERE database = 'ch_access_db' AND name = 't'", u)
+		assert.NoError(t, err)
+		assert.Equal(t, "t", res)
+	}
+
+	// After revoke the readWrite user loses CREATE.
+	assert.NoError(t, ch.revokePermissions(context.TODO(), admin, rwUser))
+	assert.Error(t, ch.execAsUser(context.TODO(),
+		"CREATE TABLE ch_access_db.t3 (id Int32) ENGINE = MergeTree ORDER BY id", rwUser))
+}
