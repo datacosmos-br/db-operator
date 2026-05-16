@@ -94,7 +94,7 @@ jobs:
       # signed, so the security posture stays auditable.
       - name: Trivy vulnerability scan
         if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           scan-type: image
