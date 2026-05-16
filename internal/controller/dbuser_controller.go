@@ -212,16 +212,22 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		dbuser.Password = creds.Password
 		dbuser.Username = creds.Username
 
-		// ClickHouse-only RBAC settings (quota / settings profile)
+		// ClickHouse-only RBAC settings (quota / settings profile / host
+		// restriction / extra grants)
 		if dbcr.Status.Engine == "clickhouse" && dbusercr.Spec.Clickhouse != nil {
-			dbuser.CHSettings = dbusercr.Spec.Clickhouse.Settings
+			dbuser.Settings = dbusercr.Spec.Clickhouse.Settings
+			dbuser.HostRegexp = dbusercr.Spec.Clickhouse.HostRegexp
 			if q := dbusercr.Spec.Clickhouse.Quota; q != nil {
-				dbuser.CHQuota = &database.CHQuota{
+				dbuser.Quota = &database.Quota{
 					IntervalSeconds:         q.IntervalSeconds,
 					MaxQueries:              q.MaxQueries,
 					MaxResultRows:           q.MaxResultRows,
 					MaxExecutionTimeSeconds: q.MaxExecutionTimeSeconds,
 				}
+			}
+			for _, g := range dbusercr.Spec.Clickhouse.ExtraGrants {
+				dbuser.ExtraGrants = append(dbuser.ExtraGrants,
+					database.Grant{Privileges: g.Privileges, On: g.On})
 			}
 		}
 		// If allow existing is set to true, db-operator will not force user creation

@@ -390,6 +390,34 @@ spec:
                     description: ClusterName is the name of the ClickHouse cluster
                       (used for ON CLUSTER queries)
                     type: string
+                  extraGrants:
+                    description: |-
+                      ExtraGrants are additional privilege grants applied to the main user
+                      beyond the per-database grant — e.g. cluster-wide privileges
+                      (REMOTE, CLUSTER ON *.*) or system-table grants.
+                    items:
+                      description: |-
+                        ClickhouseGrant is an extra ClickHouse privilege grant for a user, rendered
+                        as: GRANT <privileges> ON <on> TO <user>.
+                      properties:
+                        "on":
+                          description: On is the grant target, e.g. "*.*" or "system.clusters".
+                          type: string
+                        privileges:
+                          description: |-
+                            Privileges is the comma-separated ClickHouse privilege list,
+                            e.g. "REMOTE, CLUSTER" or "SELECT(cluster)".
+                          type: string
+                      required:
+                      - "on"
+                      - privileges
+                      type: object
+                    type: array
+                  hostRegexp:
+                    description: |-
+                      HostRegexp restricts the database's main user to client hosts whose name
+                      matches this ClickHouse HOST REGEXP pattern. Empty means no restriction.
+                    type: string
                   replicated:
                     default: false
                     description: |-
