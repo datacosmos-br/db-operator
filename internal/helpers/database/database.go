@@ -123,6 +123,13 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 			Replicated:    dbcr.Spec.Clickhouse.Replicated,
 			ZooKeeperPath: dbcr.Spec.Clickhouse.ZooKeeperPath,
 		}
+		// The main user inherits the database's ClickHouse host restriction
+		// and extra grants.
+		dbuser.HostRegexp = dbcr.Spec.Clickhouse.HostRegexp
+		for _, g := range dbcr.Spec.Clickhouse.ExtraGrants {
+			dbuser.ExtraGrants = append(dbuser.ExtraGrants,
+				database.Grant{Privileges: g.Privileges, On: g.On})
+		}
 		return db, dbuser, nil
 
 	default:

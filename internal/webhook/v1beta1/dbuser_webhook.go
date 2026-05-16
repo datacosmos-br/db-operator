@@ -154,5 +154,45 @@ func ValidateClickhouseUser(ch *kindarocksv1beta1.ClickhouseUser) error {
 			return fmt.Errorf("clickhouse.settings value for %q is not allowed: %s", k, v)
 		}
 	}
+	if err := validateClickhouseHostRegexp(ch.HostRegexp); err != nil {
+		return err
+	}
+	for _, g := range ch.ExtraGrants {
+		if err := validateClickhouseGrant(g); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// chForbiddenChars are characters that could break out of a ClickHouse DDL
+// string or clause. RBAC DDL is assembled with fmt.Sprintf and cannot be
+// parameterized, so they are rejected at admission time.
+const chForbiddenChars = "'\";`\n"
+
+// validateClickhouseGrant checks an extra privilege grant. Privileges and the
+// grant target are free-form ClickHouse syntax (e.g. "REMOTE, CLUSTER",
+// "*.*", "SELECT(cluster)"), so they cannot be validated as identifiers —
+// only injection-breaking characters are rejected.
+func validateClickhouseGrant(g kindarocksv1beta1.ClickhouseGrant) error {
+	if strings.TrimSpace(g.Privileges) == "" {
+		return errors.New("clickhouse extraGrants: privileges must not be empty")
+	}
+	if strings.TrimSpace(g.On) == "" {
+		return errors.New("clickhouse extraGrants: on must not be empty")
+	}
+	if strings.ContainsAny(g.Privileges, chForbiddenChars) || strings.ContainsAny(g.On, chForbiddenChars) {
+		return fmt.Errorf("clickhouse extraGrants contains a forbidden character: %s ON %s", g.Privileges, g.On)
+	}
+	return nil
+}
+
+// validateClickhouseHostRegexp checks the HOST REGEXP pattern. It is
+// interpolated into a quoted SQL string, so it must not contain characters
+// that would terminate that string.
+func validateClickhouseHostRegexp(pattern string) error {
+	if strings.ContainsAny(pattern, chForbiddenChars) {
+		return fmt.Errorf("clickhouse hostRegexp contains a forbidden character: %s", pattern)
+	}
 	return nil
 }

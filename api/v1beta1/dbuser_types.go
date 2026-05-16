@@ -68,6 +68,14 @@ type ClickhouseUser struct {
 	// Settings are applied to the user through a managed SETTINGS PROFILE.
 	// +optional
 	Settings map[string]string `json:"settings,omitempty"`
+	// HostRegexp restricts the user to client hosts whose name matches this
+	// ClickHouse HOST REGEXP pattern. Empty means no restriction.
+	// +optional
+	HostRegexp string `json:"hostRegexp,omitempty"`
+	// ExtraGrants are additional privilege grants applied to the user beyond
+	// the per-database grant — e.g. cluster-wide or system-table grants.
+	// +optional
+	ExtraGrants []ClickhouseGrant `json:"extraGrants,omitempty"`
 }
 
 // ClickhouseQuota defines a ClickHouse resource quota for a user.
