@@ -35,9 +35,37 @@ type ClickHouse struct {
 	Port        uint16
 	Database    string
 	ClusterName string
+	// Replicated, when true, creates the database with ENGINE = Replicated so
+	// DDL auto-replicates across the cluster via ClickHouse Keeper. Requires
+	// ClusterName to be set.
+	Replicated bool
+	// ZooKeeperPath overrides the Keeper/ZooKeeper znode path for a Replicated
+	// database. Empty means the default /clickhouse/databases/<database>.
+	ZooKeeperPath string
 }
 
 // Internal helpers, these functions are not part for the `Database` interface
+
+// onCluster returns the " ON CLUSTER '<name>'" clause when the database belongs
+// to a cluster, or an empty string otherwise. Every DDL statement that must
+// reach all nodes appends it. Note: users, roles, quotas and settings profiles
+// are server-scoped (not covered by the Replicated database engine), so their
+// DDL must keep ON CLUSTER even when the database itself is Replicated.
+func (ch ClickHouse) onCluster() string {
+	if ch.ClusterName != "" {
+		return fmt.Sprintf(" ON CLUSTER '%s'", ch.ClusterName)
+	}
+	return ""
+}
+
+// zooKeeperPath returns the Keeper znode path for a Replicated database,
+// defaulting to /clickhouse/databases/<database> when not explicitly set.
+func (ch ClickHouse) zooKeeperPath() string {
+	if ch.ZooKeeperPath != "" {
+		return ch.ZooKeeperPath
+	}
+	return fmt.Sprintf("/clickhouse/databases/%s", ch.Database)
+}
 
 // getDbConn opens a database/sql handle through the clickhouse-go v2 driver.
 // OpenDB never returns an error; connection failures surface on first query,
@@ -174,17 +202,19 @@ func (ch ClickHouse) QueryAsUser(ctx context.Context, query string, user *Databa
 
 func (ch ClickHouse) createDatabase(ctx context.Context, admin *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	var create string
 
-	if ch.ClusterName != "" {
-		create = fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s` ON CLUSTER '%s'", ch.Database, ch.ClusterName)
-	} else {
-		create = fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", ch.Database)
+	create := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`%s", ch.Database, ch.onCluster())
+	if ch.Replicated {
+		if ch.ClusterName == "" {
+			return errors.New("clickhouse: replicated database requires clusterName to be set")
+		}
+		// {shard}/{replica} are ClickHouse macros, substituted per node from
+		// each server's <macros> config — emitted as literal strings.
+		create += fmt.Sprintf(" ENGINE = Replicated('%s', '{shard}', '{replica}')", ch.zooKeeperPath())
 	}
 
 	if !ch.isDbExist(ctx, admin) {
-		err := ch.executeExec(ctx, "default", create, admin)
-		if err != nil {
+		if err := ch.executeExec(ctx, "default", create, admin); err != nil {
 			log.Error(err, "failed creating ClickHouse database")
 			return err
 		}
@@ -195,11 +225,10 @@ func (ch ClickHouse) createDatabase(ctx context.Context, admin *DatabaseUser) er
 
 func (ch ClickHouse) deleteDatabase(ctx context.Context, admin *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	drop := fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", ch.Database)
+	drop := fmt.Sprintf("DROP DATABASE IF EXISTS `%s`%s", ch.Database, ch.onCluster())
 
 	if ch.isDbExist(ctx, admin) {
-		err := ch.executeExec(ctx, "default", drop, admin)
-		if err != nil {
+		if err := ch.executeExec(ctx, "default", drop, admin); err != nil {
 			log.Error(err, "failed dropping ClickHouse database")
 			return err
 		}
@@ -229,11 +258,8 @@ func (ch ClickHouse) createOrUpdateUser(ctx context.Context, admin *DatabaseUser
 
 func (ch ClickHouse) createUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	create := fmt.Sprintf("CREATE USER IF NOT EXISTS '%s' IDENTIFIED BY '%s'", user.Username, user.Password)
-
-	if ch.ClusterName != "" {
-		create += fmt.Sprintf(" ON CLUSTER '%s'", ch.ClusterName)
-	}
+	create := fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'%s IDENTIFIED BY '%s'",
+		user.Username, ch.onCluster(), user.Password)
 
 	if err := ch.executeExec(ctx, "default", create, admin); err != nil {
 		log.Error(err, "failed creating ClickHouse user")
@@ -245,11 +271,8 @@ func (ch ClickHouse) createUser(ctx context.Context, admin *DatabaseUser, user *
 
 func (ch ClickHouse) updateUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	update := fmt.Sprintf("ALTER USER '%s' IDENTIFIED BY '%s'", user.Username, user.Password)
-
-	if ch.ClusterName != "" {
-		update += fmt.Sprintf(" ON CLUSTER '%s'", ch.ClusterName)
-	}
+	update := fmt.Sprintf("ALTER USER '%s'%s IDENTIFIED BY '%s'",
+		user.Username, ch.onCluster(), user.Password)
 
 	if err := ch.executeExec(ctx, "default", update, admin); err != nil {
 		log.Error(err, "failed updating ClickHouse user")
@@ -311,11 +334,7 @@ func (ch ClickHouse) execAsUser(ctx context.Context, query string, user *Databas
 
 func (ch ClickHouse) deleteUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	drop := fmt.Sprintf("DROP USER IF EXISTS '%s'", user.Username)
-
-	if ch.ClusterName != "" {
-		drop += fmt.Sprintf(" ON CLUSTER '%s'", ch.ClusterName)
-	}
+	drop := fmt.Sprintf("DROP USER IF EXISTS '%s'%s", user.Username, ch.onCluster())
 
 	if err := ch.executeExec(ctx, "default", drop, admin); err != nil {
 		log.Error(err, "failed deleting ClickHouse user")
