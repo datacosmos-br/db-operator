@@ -108,16 +108,41 @@ func TestExtraPrivileges(t *testing.T) {
 // DbInstance Tests
 
 func TestUnitEngineValid(t *testing.T) {
-	err := webhook.ValidateEngine("postgres")
-	assert.NoError(t, err)
-
-	err = webhook.ValidateEngine("mysql")
-	assert.NoError(t, err)
+	for _, engine := range []string{"postgres", "mysql", "clickhouse"} {
+		assert.NoErrorf(t, webhook.ValidateEngine(engine), "engine %s should be valid", engine)
+	}
 }
 
 func TestUnitEngineInvalid(t *testing.T) {
 	err := webhook.ValidateEngine("dummy")
 	assert.Error(t, err)
+}
+
+// DbUser ClickHouse RBAC validation
+
+func TestUnitValidateClickhouseUserNil(t *testing.T) {
+	assert.NoError(t, webhook.ValidateClickhouseUser(nil))
+}
+
+func TestUnitValidateClickhouseUserValid(t *testing.T) {
+	ch := &v1beta1.ClickhouseUser{
+		Quota:    &v1beta1.ClickhouseQuota{IntervalSeconds: 3600, MaxQueries: 100},
+		Settings: map[string]string{"max_memory_usage": "2000000", "max_threads": "4"},
+	}
+	assert.NoError(t, webhook.ValidateClickhouseUser(ch))
+}
+
+func TestUnitValidateClickhouseUserInvalidQuota(t *testing.T) {
+	ch := &v1beta1.ClickhouseUser{Quota: &v1beta1.ClickhouseQuota{IntervalSeconds: 0}}
+	assert.Error(t, webhook.ValidateClickhouseUser(ch))
+}
+
+func TestUnitValidateClickhouseUserInvalidSettings(t *testing.T) {
+	badKey := &v1beta1.ClickhouseUser{Settings: map[string]string{"bad key": "1"}}
+	assert.Error(t, webhook.ValidateClickhouseUser(badKey))
+
+	badValue := &v1beta1.ClickhouseUser{Settings: map[string]string{"max_threads": "1; DROP"}}
+	assert.Error(t, webhook.ValidateClickhouseUser(badValue))
 }
 
 func TestValidateFromSecret(t *testing.T) {
