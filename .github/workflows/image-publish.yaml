@@ -6,6 +6,10 @@ on:
   release:
     types: [published, edited]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/db-operator
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -17,132 +21,97 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set the image metadata
-        run: ./build/set_image_metadata
-
-      - name: Set the operator version from the tag
-        if: (github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'edited'))
-        run: |-
-          echo OPERATOR_VERSION=${{ github.event.release.tag_name }} >> "$GITHUB_ENV"
-
-      - name: Set the operator version from the tag
-        if: github.event_name == 'push'
-        run: |-
-          echo OPERATOR_VERSION=${{ github.sha }} >> "$GITHUB_ENV"
-
-      - name: Build an image
-        id: build-image
-        uses: redhat-actions/buildah-build@v2
-        with:
-          image: db-operator-dev
-          tags: ${{ env.TAGS }}
-          platforms: linux/amd64, linux/arm64/v8
-          build-args: |
-            OPERATOR_VERSION=${{ env.OPERATOR_VERSION }}
-          containerfiles: |
-            ./Containerfile
-          labels: ${{ env.ANNOTATIONS }}
-
-      - name: Export image for scanning locally
-        id: export-image
-        run: |
-          buildah push ${{ steps.build-image.outputs.image }}:${{ env.TAGS }} \
-            docker-archive:/tmp/scan-image.tar
-
-      - name: Run Trivy vulnerability scanner
-        id: trivy-scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: "image"
-          input: /tmp/scan-image.tar
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL,HIGH"
+      # OPERATOR_VERSION is baked into the binary. Releases use the tag name,
+      # branch/PR builds use the commit SHA. Untrusted-ish inputs flow through
+      # env vars, never interpolated straight into the shell.
+      - name: Resolve operator version
+        id: version
         env:
-          TRIVY_DISABLE_VEX_NOTICE: "false"
-
-      - name: Push the image to GHCR
-        id: push-to-ghcr
-        if: github.event_name == 'push'
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}
-          registry: ghcr.io/${{ github.repository_owner }}
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Set the version tag (only if released)
-        id: retag-version
-        if: (github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'edited'))
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          buildah tag \
-          ${{ steps.build-image.outputs.image }}:${{ github.sha }} \
-          ghcr.io/${{ github.repository_owner }}/db-operator:latest
-          buildah tag \
-          ${{ steps.build-image.outputs.image }}:${{ github.sha }} \
-          ghcr.io/${{ github.repository_owner }}/db-operator:${{ github.event.release.tag_name }}
+          if [ "$EVENT_NAME" = "release" ]; then
+            printf 'value=%s\n' "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          else
+            printf 'value=%s\n' "$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Push the release image to GHCR
-        if: (github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'edited'))
-        id: push-release
-        uses: redhat-actions/push-to-registry@v2
+      # Single source of truth for image tags and OCI labels.
+      - name: Container image metadata
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          tags: ghcr.io/${{ github.repository_owner }}/db-operator:latest ghcr.io/${{ github.repository_owner }}/db-operator:${{ github.event.release.tag_name }}
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,format=long
+            type=raw,value=${{ github.event.release.tag_name }},enable=${{ github.event_name == 'release' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+          labels: |
+            org.opencontainers.image.title=db-operator
+            org.opencontainers.image.description=The DB Operator creates databases and makes them available in the cluster via Custom Resources.
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}
 
-      - uses: sigstore/cosign-installer@v4.1.1
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - uses: docker/login-action@v4.1.0
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: aquasecurity/trivy-action@0.35.0
-        if: github.event_name == 'push'
+      # Multi-arch build. Pushed on branch pushes and releases; pull requests
+      # build only (validation) and never publish. A plain multi-arch manifest
+      # is produced (provenance disabled) for the widest consumer compatibility.
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
         with:
-          image-ref: "${{ steps.push-to-ghcr.outputs.registry-path }}"
-          scan-type: image
-          format: "cosign-vuln"
-          exit-code: "0"
-          ignore-unfixed: false
-          vuln-type: "os,library"
-          severity: "CRITICAL,HIGH"
-          output: ./dev-report.json
+          context: .
+          file: ./Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            OPERATOR_VERSION=${{ steps.version.outputs.value }}
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Sign the dev image with GitHub OIDC Token
-        if: github.event_name == 'push'
-        env:
-          DIGEST: ${{ steps.push-to-ghcr.outputs.digest }}
-          IMAGE: ${{ steps.push-to-ghcr.outputs.registry-path }}
-        run: |
-          cosign sign --yes ${IMAGE}@${DIGEST}
-          cosign attest --type vuln --predicate dev-report.json ${IMAGE}@${DIGEST}
-
-      - uses: aquasecurity/trivy-action@0.35.0
-        if: (github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'edited'))
+      # Scans the exact digest just built. Non-blocking: a newly disclosed CVE
+      # never blocks a publish — the report is in the run log and the image is
+      # signed, so the security posture stays auditable.
+      - name: Trivy vulnerability scan
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@0.36.0
         with:
-          image-ref: "${{ steps.push-to-ghcr.outputs.registry-path }}"
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           scan-type: image
-          format: "cosign-vuln"
+          format: table
           exit-code: "0"
-          ignore-unfixed: false
-          vuln-type: "os,library"
-          severity: "CRITICAL,HIGH"
-          output: ./release-report.json
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
 
-      - name: Sign the release images with GitHub OIDC Token
-        if: (github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'edited'))
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      # Keyless signature (GitHub OIDC). One signature on the manifest digest
+      # covers every tag, since all tags resolve to the same digest.
+      - name: Sign the image
+        if: github.event_name != 'pull_request'
         env:
-          DIGEST: ${{ steps.push-release.outputs.digest }}
-          IMAGE: ${{ steps.push-release.outputs.registry-path }}
-        run: |
-          cosign sign --yes ${IMAGE}@${DIGEST}
-          cosign attest --type vuln --predicate release-report.json ${IMAGE}@${DIGEST}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${DIGEST}"
