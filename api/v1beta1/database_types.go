@@ -63,6 +63,14 @@ type Postgres struct {
 type Clickhouse struct {
 	// ClusterName is the name of the ClickHouse cluster (used for ON CLUSTER queries)
 	ClusterName string `json:"clusterName,omitempty"`
+	// Replicated, when true and clusterName is set, creates the database with
+	// ENGINE = Replicated so DDL auto-replicates across the cluster via ClickHouse Keeper.
+	// +kubebuilder:default=false
+	Replicated bool `json:"replicated,omitempty"`
+	// ZooKeeperPath overrides the Keeper/ZooKeeper znode path for a Replicated
+	// database. Defaults to /clickhouse/databases/<database> when empty.
+	// +optional
+	ZooKeeperPath string `json:"zooKeeperPath,omitempty"`
 }
 
 // DatabaseStatus defines the observed state of Database

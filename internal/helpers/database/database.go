@@ -116,10 +116,12 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 
 	case "clickhouse":
 		db := database.ClickHouse{
-			Host:        host,
-			Port:        uint16(port),
-			Database:    dbCred.Name,
-			ClusterName: dbcr.Spec.Clickhouse.ClusterName,
+			Host:          host,
+			Port:          uint16(port),
+			Database:      dbCred.Name,
+			ClusterName:   dbcr.Spec.Clickhouse.ClusterName,
+			Replicated:    dbcr.Spec.Clickhouse.Replicated,
+			ZooKeeperPath: dbcr.Spec.Clickhouse.ZooKeeperPath,
 		}
 		return db, dbuser, nil
 
