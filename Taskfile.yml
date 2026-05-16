@@ -124,8 +124,12 @@ tasks:
     cmd: go test -count=1 -tags tests -run "TestMysql" ./... -v -cover
 
   clickhouse-test:
-    desc: Run clickhouse tests
-    cmd: go test -count=1 -tags tests -run "TestClickhouse" ./... -v -cover
+    desc: Run clickhouse single-node tests
+    cmd: go test -count=1 -tags tests -run "TestClickhouse" -skip "TestClickhouseCluster" ./... -v -cover
+
+  clickhouse-cluster-test:
+    desc: Run clickhouse multi-node cluster tests
+    cmd: go test -count=1 -tags tests -run "TestClickhouseCluster" ./... -v -cover
 
   kubernetes-test:
     desc: Run kubernetes integration tests

@@ -18,7 +18,9 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/db-operator/db-operator/v2/pkg/test"
 	"github.com/stretchr/testify/assert"
@@ -342,4 +344,121 @@ func TestClickhouseRBAC(t *testing.T) {
 	assert.NoError(t, ch.revokePermissions(context.TODO(), admin, user))
 	assert.False(t, quotaExists(), "quota should be dropped after revoke")
 	assert.False(t, profileExists(), "settings profile should be dropped after revoke")
+}
+
+// ---- Multi-node cluster tests (run via `task clickhouse-cluster-test`) ----
+//
+// These run against a 2-node ClickHouse cluster (1 shard, 2 replicas) created
+// by the Altinity ClickHouse operator. A single connection is used; cluster-wide
+// state is asserted with the clusterAllReplicas() table function — ClickHouse's
+// idiom for querying every node — so no per-node connection is needed.
+
+// clickhouseClusterReplicas is the replica count of the test cluster; cluster
+// DDL must land on exactly this many nodes.
+const clickhouseClusterReplicas = 2
+
+// testClickhouseCluster returns a handle to the cluster that creates Replicated
+// databases (DDL propagates to every node via ON CLUSTER and ClickHouse Keeper).
+func testClickhouseCluster(database string) ClickHouse {
+	return ClickHouse{
+		Host:        test.GetClickhouseHost(),
+		Port:        test.GetClickhousePort(),
+		Database:    database,
+		ClusterName: test.GetClickhouseClusterName(),
+		Replicated:  true,
+	}
+}
+
+// clusterRowCount runs a COUNT query as admin against the always-present
+// "default" database and returns the scalar result.
+func clusterRowCount(t *testing.T, ch ClickHouse, admin *DatabaseUser, query string) int {
+	t.Helper()
+	db, err := ch.getDbConn("default", admin.Username, admin.Password)
+	assert.NoError(t, err)
+	defer db.Close()
+	var count uint64
+	if err := db.QueryRow(query).Scan(&count); err != nil {
+		t.Fatalf("count query failed: %v", err)
+	}
+	return int(count)
+}
+
+func TestClickhouseClusterReplicatedDatabase(t *testing.T) {
+	ch := testClickhouseCluster("ch_cl_repl_db")
+	admin := getClickhouseAdmin()
+	cleanup := func() { _ = ch.deleteDatabase(context.TODO(), admin) }
+	cleanup()
+	defer cleanup()
+
+	dbOnAllNodes := fmt.Sprintf(
+		"SELECT count() FROM clusterAllReplicas('%s', system.databases) WHERE name = 'ch_cl_repl_db'",
+		test.GetClickhouseClusterName())
+
+	assert.NoError(t, ch.createDatabase(context.TODO(), admin))
+	// A Replicated database created ON CLUSTER must exist on every node.
+	assert.Equal(t, clickhouseClusterReplicas, clusterRowCount(t, ch, admin, dbOnAllNodes))
+
+	// deleteDatabase ON CLUSTER must drop it on every node — regression guard
+	// for the previously-missing ON CLUSTER on DROP DATABASE.
+	assert.NoError(t, ch.deleteDatabase(context.TODO(), admin))
+	assert.Equal(t, 0, clusterRowCount(t, ch, admin, dbOnAllNodes))
+}
+
+func TestClickhouseClusterUserPropagation(t *testing.T) {
+	ch := testClickhouseCluster("ch_cl_user_db")
+	admin := getClickhouseAdmin()
+	user := &DatabaseUser{Username: "ch_cl_user", Password: "p", AccessType: ACCESS_TYPE_READWRITE}
+	cleanup := func() {
+		_ = ch.deleteUser(context.TODO(), admin, user)
+		_ = ch.deleteDatabase(context.TODO(), admin)
+	}
+	cleanup()
+	defer cleanup()
+
+	userOnAllNodes := fmt.Sprintf(
+		"SELECT count() FROM clusterAllReplicas('%s', system.users) WHERE name = 'ch_cl_user'",
+		test.GetClickhouseClusterName())
+
+	assert.NoError(t, ch.createDatabase(context.TODO(), admin))
+	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, user))
+	// A user created ON CLUSTER must exist on every node.
+	assert.Equal(t, clickhouseClusterReplicas, clusterRowCount(t, ch, admin, userOnAllNodes))
+
+	assert.NoError(t, ch.deleteUser(context.TODO(), admin, user))
+	assert.Equal(t, 0, clusterRowCount(t, ch, admin, userOnAllNodes))
+}
+
+func TestClickhouseClusterReplicatedDDL(t *testing.T) {
+	ch := testClickhouseCluster("ch_cl_ddl_db")
+	admin := getClickhouseAdmin()
+	user := &DatabaseUser{Username: "ch_cl_ddl_user", Password: "p", AccessType: ACCESS_TYPE_MAINUSER}
+	cleanup := func() {
+		_ = ch.deleteUser(context.TODO(), admin, user)
+		_ = ch.deleteDatabase(context.TODO(), admin)
+	}
+	cleanup()
+	defer cleanup()
+
+	assert.NoError(t, ch.createDatabase(context.TODO(), admin))
+	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, user))
+
+	// A table created inside a Replicated database must auto-replicate to every
+	// node WITHOUT ON CLUSTER — the Replicated engine handles table DDL.
+	createTable := "CREATE TABLE ch_cl_ddl_db.events (id Int32) ENGINE = MergeTree ORDER BY id"
+	assert.NoError(t, ch.execAsUser(context.TODO(), createTable, user))
+
+	tableOnAllNodes := fmt.Sprintf(
+		"SELECT count() FROM clusterAllReplicas('%s', system.tables) "+
+			"WHERE database = 'ch_cl_ddl_db' AND name = 'events'",
+		test.GetClickhouseClusterName())
+	// Replicated-database DDL propagation is asynchronous; poll briefly.
+	replicated := false
+	for range 40 {
+		if clusterRowCount(t, ch, admin, tableOnAllNodes) == clickhouseClusterReplicas {
+			replicated = true
+			break
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	assert.True(t, replicated, "table DDL should auto-replicate to all cluster nodes")
 }

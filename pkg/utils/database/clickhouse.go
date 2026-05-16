@@ -72,9 +72,9 @@ func (ch ClickHouse) zooKeeperPath() string {
 // getDbConn opens a database/sql handle through the clickhouse-go v2 driver.
 // OpenDB never returns an error; connection failures surface on first query,
 // matching the previous sql.Open behaviour. The (*sql.DB, error) signature is
-// kept so callers stay unchanged.
+// kept so callers stay uniform with the postgres/mysql engines.
 func (ch ClickHouse) getDbConn(dbname, user, password string) (*sql.DB, error) {
-	db := clickhouse.OpenDB(&clickhouse.Options{
+	return clickhouse.OpenDB(&clickhouse.Options{
 		Addr: []string{fmt.Sprintf("%s:%d", ch.Host, ch.Port)},
 		Auth: clickhouse.Auth{
 			Database: dbname,
@@ -83,8 +83,7 @@ func (ch ClickHouse) getDbConn(dbname, user, password string) (*sql.DB, error) {
 		},
 		Protocol:    clickhouse.Native,
 		DialTimeout: 30 * time.Second,
-	})
-	return db, nil
+	}), nil
 }
 
 func (ch ClickHouse) executeExec(ctx context.Context, database, query string, admin *DatabaseUser) error {
@@ -211,7 +210,9 @@ func (ch ClickHouse) createDatabase(ctx context.Context, admin *DatabaseUser) er
 			return errors.New("clickhouse: replicated database requires clusterName to be set")
 		}
 		// {shard}/{replica} are ClickHouse macros, substituted per node from
-		// each server's <macros> config — emitted as literal strings.
+		// each server's <macros> config — emitted as literal strings, not
+		// interpolated by the operator. The Replicated database engine is GA
+		// since ClickHouse 25.x, so no experimental setting is required.
 		create += fmt.Sprintf(" ENGINE = Replicated('%s', '{shard}', '{replica}')", ch.zooKeeperPath())
 	}
 
