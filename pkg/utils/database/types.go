@@ -44,6 +44,19 @@ type DatabaseUser struct {
 	// user is revoked from rds_iam, hence it should
 	// happen while it's being deleted
 	GrantToAdminOnDelete bool
+	// CHQuota and CHSettings are ClickHouse-only RBAC settings; nil/empty for
+	// other engines. Kept as package-local types so this package does not
+	// depend on api/v1beta1.
+	CHQuota    *CHQuota
+	CHSettings map[string]string
+}
+
+// CHQuota is a ClickHouse per-user resource quota. A limit of 0 is not enforced.
+type CHQuota struct {
+	IntervalSeconds         int64
+	MaxQueries              int64
+	MaxResultRows           int64
+	MaxExecutionTimeSeconds int64
 }
 
 // DatabaseAddress contains host and port of a database instance
