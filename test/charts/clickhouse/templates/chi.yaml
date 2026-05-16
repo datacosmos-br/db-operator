@@ -1,0 +1,48 @@
+# Single-node ClickHouse managed by the Altinity ClickHouse operator.
+# The operator owns all ClickHouse config (users, ports, service); the chart
+# only declares intent. NodePort access for the integration-test client is
+# expressed canonically via an operator serviceTemplate — no hand-written
+# Service coupled to operator-internal pod labels.
+apiVersion: clickhouse.altinity.com/v1
+kind: ClickHouseInstallation
+metadata:
+  name: clickhouse
+spec:
+  defaults:
+    templates:
+      podTemplate: ch
+      serviceTemplate: ch-nodeport
+  configuration:
+    users:
+      # Dedicated admin user for the operator / integration-test client.
+      # The built-in `default` user is left untouched for the Altinity
+      # operator's own intra-cluster use.
+      dbo_admin/password: {{ .Values.auth.password | quote }}
+      dbo_admin/profile: default
+      dbo_admin/networks/ip:
+        - "0.0.0.0/0"
+        - "::/0"
+      dbo_admin/access_management: "1"
+      dbo_admin/grants/query:
+        - "GRANT ALL ON *.* WITH GRANT OPTION"
+    clusters:
+      - name: single
+        layout:
+          shardsCount: 1
+          replicasCount: 1
+  templates:
+    podTemplates:
+      - name: ch
+        spec:
+          containers:
+            - name: clickhouse
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+    serviceTemplates:
+      - name: ch-nodeport
+        generateName: "clickhouse-{chi}"
+        spec:
+          type: NodePort
+          ports:
+            - name: tcp
+              port: 9000
+              nodePort: {{ .Values.service.nodePort }}

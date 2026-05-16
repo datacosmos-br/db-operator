@@ -1,0 +1,25 @@
+# Default values for the ClickHouse cluster test chart.
+# The chart declares a ClickHouseKeeperInstallation and a ClickHouseInstallation;
+# the Altinity operator (installed separately) reconciles them.
+
+image:
+  repository: clickhouse/clickhouse-server
+  tag: "26.3"
+
+keeperImage:
+  repository: clickhouse/clickhouse-keeper
+  tag: "26.3"
+
+# Credentials applied to the built-in `default` user on every node.
+auth:
+  password: qwertyu9
+
+# Name of the cluster. Must match the CLICKHOUSE_CLUSTER env var used by the
+# integration tests. ClickHouse cluster names map to Kubernetes resource names,
+# so this must be DNS-safe (hyphens, not underscores).
+clusterName: dbo-cluster
+
+# NodePort for the cluster-wide ClickHouse service (native protocol). One port
+# is enough — the cluster tests assert cross-node state via clusterAllReplicas().
+service:
+  nodePort: 30900

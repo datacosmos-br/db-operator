@@ -1,0 +1,55 @@
+# 2-node ClickHouse cluster (1 shard, 2 replicas) managed by the Altinity
+# operator. The operator wires <remote_servers>, <macros> and Keeper so DDL
+# issued ON CLUSTER and Replicated databases propagate across the cluster.
+#
+# NodePort access for the integration-test client is expressed canonically via
+# an operator serviceTemplate. A single cluster-wide service is enough: the
+# tests assert cross-node state with clusterAllReplicas(), so no per-node
+# Service (which would couple to operator-internal pod labels) is needed.
+apiVersion: clickhouse.altinity.com/v1
+kind: ClickHouseInstallation
+metadata:
+  name: clickhouse-cluster
+spec:
+  defaults:
+    templates:
+      podTemplate: ch
+      serviceTemplate: ch-nodeport
+  configuration:
+    zookeeper:
+      keeper:
+        name: clickhouse-keeper
+    users:
+      # Dedicated admin user for the operator / integration-test client.
+      # The built-in `default` user is left untouched so the Altinity operator
+      # can use it for intra-cluster (ON CLUSTER / Remote) authentication —
+      # passwording `default` would break inter-node auth.
+      dbo_admin/password: {{ .Values.auth.password | quote }}
+      dbo_admin/profile: default
+      dbo_admin/networks/ip:
+        - "0.0.0.0/0"
+        - "::/0"
+      dbo_admin/access_management: "1"
+      dbo_admin/grants/query:
+        - "GRANT ALL ON *.* WITH GRANT OPTION"
+    clusters:
+      - name: {{ .Values.clusterName }}
+        layout:
+          shardsCount: 1
+          replicasCount: 2
+  templates:
+    podTemplates:
+      - name: ch
+        spec:
+          containers:
+            - name: clickhouse
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+    serviceTemplates:
+      - name: ch-nodeport
+        generateName: "clickhouse-{chi}"
+        spec:
+          type: NodePort
+          ports:
+            - name: tcp
+              port: 9000
+              nodePort: {{ .Values.service.nodePort }}
