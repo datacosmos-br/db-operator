@@ -24,14 +24,17 @@ spec:
       # The built-in `default` user is left untouched so the Altinity operator
       # can use it for intra-cluster (ON CLUSTER / Remote) authentication —
       # passwording `default` would break inter-node auth.
+      # access_management gives this XML-defined user full DDL access plus the
+      # ability to manage users/roles/grants/quotas — the same configuration
+      # the Altinity operator uses for its own `clickhouse_operator` user, and
+      # compatible across every supported ClickHouse version (no `grants`
+      # element, which older versions reject).
       dbo_admin/password: {{ .Values.auth.password | quote }}
       dbo_admin/profile: default
       dbo_admin/networks/ip:
         - "0.0.0.0/0"
         - "::/0"
       dbo_admin/access_management: "1"
-      dbo_admin/grants/query:
-        - "GRANT ALL ON *.* WITH GRANT OPTION"
     clusters:
       - name: {{ .Values.clusterName }}
         layout:

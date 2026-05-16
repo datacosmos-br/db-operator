@@ -123,9 +123,23 @@ tasks:
     desc: Run mysql tests
     cmd: go test -count=1 -tags tests -run "TestMysql" ./... -v -cover
 
+  clickhouse-wait:
+    desc: Wait for the Altinity-managed single-node ClickHouse to be ready
+    # helm --wait only confirms the CR was applied; the operator creates the
+    # pods asynchronously, so the test environment must wait for them here.
+    cmd: |
+      until kubectl get pods -l clickhouse.altinity.com/chi=clickhouse -n databases --no-headers 2>/dev/null | grep -q .; do sleep 5; done
+      kubectl wait --for=condition=Ready pod -l clickhouse.altinity.com/chi=clickhouse -n databases --timeout=600s
+
   clickhouse-test:
     desc: Run clickhouse single-node tests
     cmd: go test -count=1 -tags tests -run "TestClickhouse" -skip "TestClickhouseCluster" ./... -v -cover
+
+  clickhouse-cluster-wait:
+    desc: Wait for the Altinity-managed ClickHouse cluster to be ready
+    cmd: |
+      until [ "$(kubectl get pods -l clickhouse.altinity.com/chi=clickhouse-cluster -n databases --no-headers 2>/dev/null | grep -c .)" -ge 2 ]; do sleep 5; done
+      kubectl wait --for=condition=Ready pod -l clickhouse.altinity.com/chi=clickhouse-cluster -n databases --timeout=600s
 
   clickhouse-cluster-test:
     desc: Run clickhouse multi-node cluster tests

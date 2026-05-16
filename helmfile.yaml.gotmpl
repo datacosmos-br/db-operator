@@ -214,9 +214,11 @@ releases:
     needs:
       - kube-system/clickhouse-operator
     values:
+      # Only the ClickHouse server version varies across the test matrix.
+      # ClickHouse Keeper stays at the chart-default modern version — a newer
+      # Keeper serves older ClickHouse servers, and old Keeper builds reject
+      # coordination settings emitted by the current Altinity operator.
       - image:
-          tag: {{ .Values.databases.clickhouseCluster.imageTag | quote }}
-        keeperImage:
           tag: {{ .Values.databases.clickhouseCluster.imageTag | quote }}
       - auth:
           password: {{ .Values.databases.clickhouseCluster.password }}
