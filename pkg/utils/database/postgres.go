@@ -93,9 +93,12 @@ func (p Postgres) getDbConn(dbname, user, password string) (*sql.DB, error) {
 		sqldriver = "postgres"
 	}
 
-	// connect_timeout bounds the TCP connect so a reconcile cannot hang
-	// indefinitely on an unreachable instance and block the work queue.
-	dataSourceName := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s connect_timeout=10", p.Host, p.Port, dbname, user, password, p.sslMode())
+	// connect_timeout bounds the TCP connect; statement_timeout bounds every
+	// query. Without the latter a reconcile can still hang indefinitely on a
+	// query that blocks on a lock held by the application (e.g. GRANT/REVOKE
+	// or DROP against a busy database), starving the single worker. 60s is
+	// well above any DDL the operator issues against an empty database.
+	dataSourceName := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s connect_timeout=10 options='-c statement_timeout=60000'", p.Host, p.Port, dbname, user, password, p.sslMode())
 	db, err := sql.Open(sqldriver, dataSourceName)
 	if err != nil {
 		return nil, fmt.Errorf("sql.Open: %v", err)
