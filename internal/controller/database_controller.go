@@ -50,7 +50,6 @@ import (
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -495,12 +494,15 @@ func (r *DatabaseReconciler) handleDbDelete(ctx context.Context, dbcr *kindav1be
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatabaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// MaxConcurrentReconciles stays at the default of 1: DatabaseReconciler
+	// keeps per-request state on the shared struct (r.kubeHelper, assigned at
+	// the top of Reconcile), so concurrent reconciles race and a Database
+	// ends up validating another Database's Secret/ConfigMap. Queue
+	// starvation is avoided instead by removing the failure modes that block
+	// the worker — the ClickHouse health check no longer hot-loops, and the
+	// postgres/mysql connects now time out.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kindav1beta1.Database{}).
-		// Reconcile databases concurrently so a single slow or failing
-		// database (e.g. an unreachable instance) cannot starve the queue
-		// and block every other Database from being reconciled.
-		WithOptions(controller.Options{MaxConcurrentReconciles: 5}).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findDatabaseForSecret),
