@@ -64,6 +64,13 @@ type Postgres struct {
 
 const postgresDefaultSSLMode = "disable"
 
+// postgresQueryTimeout bounds every query issued by the operator. The libpq
+// statement_timeout option is not honoured when the connection is proxied
+// through pgpool, so the deadline is enforced client-side on the context:
+// when it fires, lib/pq aborts the call and the reconcile worker is freed
+// instead of hanging indefinitely on a blocked query.
+const postgresQueryTimeout = 60 * time.Second
+
 // Internal helpers, these functions are not part for the `Database` interface
 
 func (p Postgres) sslMode() string {
@@ -109,6 +116,8 @@ func (p Postgres) getDbConn(dbname, user, password string) (*sql.DB, error) {
 
 func (p Postgres) executeExec(ctx context.Context, database, query string, admin *DatabaseUser) error {
 	log := log.FromContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, postgresQueryTimeout)
+	defer cancel()
 	db, err := p.getDbConn(database, admin.Username, admin.Password)
 	if err != nil {
 		log.Error(err, "failed to open a db connection")
@@ -116,13 +125,15 @@ func (p Postgres) executeExec(ctx context.Context, database, query string, admin
 	}
 
 	defer db.Close()
-	_, err = db.Exec(query)
+	_, err = db.ExecContext(ctx, query)
 
 	return err
 }
 
 func (p Postgres) execAsUser(ctx context.Context, query string, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, postgresQueryTimeout)
+	defer cancel()
 	db, err := p.getDbConn(p.Database, user.Username, user.Password)
 	if err != nil {
 		log.Error(err, "failed to open a db connection")
@@ -130,27 +141,29 @@ func (p Postgres) execAsUser(ctx context.Context, query string, user *DatabaseUs
 	}
 
 	defer db.Close()
-	_, err = db.Exec(query)
+	_, err = db.ExecContext(ctx, query)
 
 	return err
 }
 
 func (p Postgres) execSettingRole(ctx context.Context, database, query string, user *DatabaseUser, admin *DatabaseUser) error {
 	log := log.FromContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, postgresQueryTimeout)
+	defer cancel()
 	setUserRole := fmt.Sprintf("SET ROLE \"%s\"", user.Username)
 	db, err := p.getDbConn(database, admin.Username, admin.Password)
 	if err != nil {
 		log.Error(err, "failed to open a db connection")
 		return err
 	}
-	_, err = db.Exec(setUserRole)
+	_, err = db.ExecContext(ctx, setUserRole)
 	if err != nil {
 		log.Error(err, "failed to set role", "query", setUserRole)
 		return err
 	}
 
 	defer db.Close()
-	_, err = db.Exec(query)
+	_, err = db.ExecContext(ctx, query)
 
 	return err
 }
@@ -169,6 +182,8 @@ func (p Postgres) isUserExist(ctx context.Context, admin *DatabaseUser, user *Da
 
 func (p Postgres) isRowExist(ctx context.Context, database, query, user, password string) bool {
 	log := log.FromContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, postgresQueryTimeout)
+	defer cancel()
 	db, err := p.getDbConn(database, user, password)
 	if err != nil {
 		log.Error(err, "failed to open a db connection")
@@ -177,7 +192,7 @@ func (p Postgres) isRowExist(ctx context.Context, database, query, user, passwor
 	defer db.Close()
 
 	var name string
-	err = db.QueryRow(query).Scan(&name)
+	err = db.QueryRowContext(ctx, query).Scan(&name)
 	if err != nil {
 		log.V(2).Info("failed executing query", "error", err)
 		return false
@@ -269,12 +284,14 @@ func (p Postgres) checkExtensions(ctx context.Context, user *DatabaseUser) error
 // CheckStatus checks status of postgres database
 // if the connection to database works
 func (p Postgres) CheckStatus(ctx context.Context, user *DatabaseUser) error {
+	ctx, cancel := context.WithTimeout(ctx, postgresQueryTimeout)
+	defer cancel()
 	db, err := p.getDbConn(p.Database, user.Username, user.Password)
 	if err != nil {
 		return fmt.Errorf("db conn test failed - couldn't get db conn: %s", err)
 	}
 	defer db.Close()
-	res, err := db.Query("SELECT 1")
+	res, err := db.QueryContext(ctx, "SELECT 1")
 	if err != nil {
 		return fmt.Errorf("db conn test failed - failed to execute query: %s", err)
 	}
@@ -348,6 +365,8 @@ func (p Postgres) GetDatabaseAddress(ctx context.Context) DatabaseAddress {
 
 func (p Postgres) QueryAsUser(ctx context.Context, query string, user *DatabaseUser) (string, error) {
 	log := log.FromContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, postgresQueryTimeout)
+	defer cancel()
 	db, err := p.getDbConn(p.Database, user.Username, user.Password)
 	if err != nil {
 		log.Error(err, "failed to open a db connection")
@@ -356,7 +375,7 @@ func (p Postgres) QueryAsUser(ctx context.Context, query string, user *DatabaseU
 	defer db.Close()
 
 	var result string
-	if err := db.QueryRow(query).Scan(&result); err != nil {
+	if err := db.QueryRowContext(ctx, query).Scan(&result); err != nil {
 		log.Error(err, "failed executing query", "query", query)
 		return "", err
 	}
