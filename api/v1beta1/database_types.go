@@ -41,6 +41,11 @@ type DatabaseSpec struct {
 	// User will not be removed, when a database is removed, but the permissions added by the
 	// operator will be cleaned up
 	ExistingUser string `json:"existingUser,omitempty"`
+	// DatabaseName overrides the name of the database that gets created. When
+	// empty, the operator generates it as "<namespace>-<name>". Set it to
+	// adopt a pre-existing database or to keep an externally-defined name.
+	// +optional
+	DatabaseName string `json:"databaseName,omitempty"`
 }
 
 type ExtraGrant struct {
