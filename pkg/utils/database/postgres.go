@@ -93,7 +93,9 @@ func (p Postgres) getDbConn(dbname, user, password string) (*sql.DB, error) {
 		sqldriver = "postgres"
 	}
 
-	dataSourceName := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s", p.Host, p.Port, dbname, user, password, p.sslMode())
+	// connect_timeout bounds the TCP connect so a reconcile cannot hang
+	// indefinitely on an unreachable instance and block the work queue.
+	dataSourceName := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s connect_timeout=10", p.Host, p.Port, dbname, user, password, p.sslMode())
 	db, err := sql.Open(sqldriver, dataSourceName)
 	if err != nil {
 		return nil, fmt.Errorf("sql.Open: %v", err)
