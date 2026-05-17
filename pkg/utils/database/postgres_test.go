@@ -740,7 +740,23 @@ func TestPostgresPresentConnectionNoForce(t *testing.T) {
 
 	go p.execAsUser(t.Context(), sleepQuery, user)
 
-	time.Sleep(5 * time.Second)
+	// Wait until the asynchronous user session is actually executing the
+	// sleep query against the database before attempting the drop. A fixed
+	// time.Sleep races with connection setup and is flaky on a loaded test
+	// cluster (the drop runs before the session holds the database).
+	sessionActive := false
+	for range 150 {
+		count, err := p.QueryAsUser(t.Context(),
+			"SELECT count(*)::text FROM pg_stat_activity WHERE datname = 'testactiveconnection1' AND query LIKE 'SELECT PG_SLEEP%'",
+			admin)
+		if err == nil && count != "0" {
+			sessionActive = true
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	assert.True(t, sessionActive, "user sleep session did not start in time")
+
 	err := p.deleteDatabase(t.Context(), admin)
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "is being accessed by other users")

@@ -50,6 +50,7 @@ import (
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -155,6 +156,14 @@ func (r *DatabaseReconciler) healthCheck(ctx context.Context, dbcr *kindav1beta1
 	log := log.FromContext(ctx)
 	if len(dbcr.Spec.ExistingUser) > 0 {
 		log.Info("An existing user is used, running health check as admin")
+		return r.healthCheckAdmin(ctx, dbcr)
+	}
+	// ClickHouse user accounts may be pinned to a HOST REGEXP / network ACL
+	// (e.g. PMM tenants restricted to a single pod hostname), so the operator
+	// itself cannot authenticate as that user. A user-level health check would
+	// always fail and requeue, starving the work queue. Verify liveness through
+	// the unrestricted admin account instead.
+	if dbcr.Status.Engine == "clickhouse" {
 		return r.healthCheckAdmin(ctx, dbcr)
 	}
 	return r.healthCheckUser(ctx, dbcr)
@@ -488,6 +497,10 @@ func (r *DatabaseReconciler) handleDbDelete(ctx context.Context, dbcr *kindav1be
 func (r *DatabaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kindav1beta1.Database{}).
+		// Reconcile databases concurrently so a single slow or failing
+		// database (e.g. an unreachable instance) cannot starve the queue
+		// and block every other Database from being reconciled.
+		WithOptions(controller.Options{MaxConcurrentReconciles: 5}).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findDatabaseForSecret),
