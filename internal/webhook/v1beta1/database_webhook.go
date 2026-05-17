@@ -122,6 +122,10 @@ func (v *DatabaseCustomValidator) ValidateCreate(_ context.Context, obj *kindaro
 		return warnings, err
 	}
 
+	if obj.Spec.DatabaseName != "" && !isValidIdentifier(obj.Spec.DatabaseName) {
+		return warnings, fmt.Errorf("databaseName is not a valid identifier: %s", obj.Spec.DatabaseName)
+	}
+
 	return warnings, nil
 }
 
@@ -179,6 +183,10 @@ func (v *DatabaseCustomValidator) ValidateUpdate(_ context.Context, oldObj, newO
 
 	if err := validateClickhouseDatabase(newObj.Spec.Clickhouse); err != nil {
 		return warnings, err
+	}
+
+	if newObj.Spec.DatabaseName != oldObj.Spec.DatabaseName {
+		return warnings, fmt.Errorf(immutableErr, "spec.databaseName")
 	}
 
 	return warnings, nil
