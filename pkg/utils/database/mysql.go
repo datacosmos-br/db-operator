@@ -77,7 +77,10 @@ func (m Mysql) getDbConn(ctx context.Context, user, password string) (*sql.DB, e
 			return db, err
 		}
 	default:
-		dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/?tls=%s", user, password, m.Host, m.Port, m.sslMode())
+		// timeout bounds the TCP connect, read/write timeouts bound stuck
+		// queries, so a reconcile cannot hang indefinitely on an unreachable
+		// instance and block the work queue.
+		dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/?tls=%s&timeout=10s&readTimeout=1m&writeTimeout=1m", user, password, m.Host, m.Port, m.sslMode())
 		db, err = sql.Open("mysql", dataSourceName)
 		if err != nil {
 			log.Error(err, "failed to validate db connection")
