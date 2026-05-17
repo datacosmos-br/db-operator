@@ -288,6 +288,17 @@ func GetSSLMode(dbcr *kindav1beta1.Database, instance *kindav1beta1.DbInstance) 
 		}
 	}
 
+	if dbcr.Status.Engine == "clickhouse" {
+		switch genericSSL {
+		case consts.SSL_DISABLED:
+			return "none", nil
+		case consts.SSL_REQUIRED:
+			return "require", nil
+		case consts.SSL_VERIFY_CA:
+			return "verify-ca", nil
+		}
+	}
+
 	return "", fmt.Errorf("unknown database engine: %s", dbcr.Status.Engine)
 }
 
