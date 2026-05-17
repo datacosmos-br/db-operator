@@ -480,6 +480,12 @@ spec:
                       type: object
                     type: array
                 type: object
+              databaseName:
+                description: |-
+                  DatabaseName overrides the name of the database that gets created. When
+                  empty, the operator generates it as "<namespace>-<name>". Set it to
+                  adopt a pre-existing database or to keep an externally-defined name.
+                type: string
               deletionProtected:
                 type: boolean
               existingUser:
