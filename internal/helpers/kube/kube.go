@@ -70,6 +70,11 @@ func (kh *KubeHelper) ModifyObject(ctx context.Context, obj client.Object) error
 func (kh *KubeHelper) HandleDelete(ctx context.Context, obj client.Object) error {
 	// If object is not used by the caller, we shouldn't edit it when a caller is removed
 	if err := kh.Cli.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, obj); err != nil {
+		// Nothing to release/orphan if it's already gone. Returning nil keeps
+		// deletion idempotent so a finalizer waiting on this handler can proceed.
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	if !kh.IsUsedByCaller(obj) {
@@ -81,6 +86,13 @@ func (kh *KubeHelper) HandleDelete(ctx context.Context, obj client.Object) error
 		)
 	}
 	obj = kh.DeleteUsedByLabels(obj)
+	// When the caller opts out of cleanup, strip our ownerReference so the
+	// garbage collector orphans (keeps) the object instead of cascade-deleting
+	// it together with the owner CR. With cleanup enabled the ownerReference is
+	// left in place, so the GC removes the object once the owner is gone.
+	if !kh.Caller.IsCleanup() {
+		obj = kh.SetOwnerReference(obj, metav1.OwnerReference{})
+	}
 	if err := kh.Cli.Update(ctx, obj); err != nil {
 		return err
 	}
@@ -198,19 +210,24 @@ func (kh *KubeHelper) DeleteUsedByLabels(obj client.Object) client.Object {
 }
 
 func (kh *KubeHelper) BuildOwnerReference() metav1.OwnerReference {
-	ownership := metav1.OwnerReference{}
-	// If cleanup is true, all the objects that are created by db-operator should be owned by the database object,
-	//  so they are removed when database is removed
-	if kh.Caller.IsCleanup() {
-		APIVersion := fmt.Sprintf("%s/%s", kh.Caller.GetObjectKind().GroupVersionKind().Group, kh.Caller.GetObjectKind().GroupVersionKind().Version)
-		ownership = metav1.OwnerReference{
-			APIVersion: APIVersion,
-			Kind:       kh.Caller.GetObjectKind().GroupVersionKind().Kind,
-			Name:       kh.Caller.GetName(),
-			UID:        kh.Caller.GetUID(),
-		}
+	// Generated objects are always owned by the caller CR so that ArgoCD
+	// discovers them as part of the deploy (its resource tree is built from
+	// ownerReferences). Cascade garbage-collection is decoupled from this in
+	// HandleDelete: when the caller opts out of cleanup, the ownerReference is
+	// stripped on deletion so the object is orphaned (preserved) instead.
+	//
+	// A cluster-scoped caller (DbInstance) must never own a namespaced object
+	// — Kubernetes rejects such ownerReferences — so skip it in that case.
+	if kh.Caller.GetNamespace() == "" {
+		return metav1.OwnerReference{}
 	}
-	return ownership
+	APIVersion := fmt.Sprintf("%s/%s", kh.Caller.GetObjectKind().GroupVersionKind().Group, kh.Caller.GetObjectKind().GroupVersionKind().Version)
+	return metav1.OwnerReference{
+		APIVersion: APIVersion,
+		Kind:       kh.Caller.GetObjectKind().GroupVersionKind().Kind,
+		Name:       kh.Caller.GetName(),
+		UID:        kh.Caller.GetUID(),
+	}
 }
 
 const (
