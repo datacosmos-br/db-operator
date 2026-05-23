@@ -168,7 +168,16 @@ var _ = Describe("KubeHelpers test", func() {
 				consts.USED_BY_NAME_LABEL_KEY: database.GetName(),
 			}
 			Expect(secretCopy.GetLabels()).To(Equal(expectedLabels))
-			Expect(secretCopy.GetOwnerReferences()).To(BeEmpty())
+			// Ownership is decoupled from cleanup: the object is always owned by
+			// the caller (so ArgoCD sees it); preservation happens on delete.
+			Expect(secretCopy.GetOwnerReferences()).To(Equal([]metav1.OwnerReference{
+				{
+					APIVersion: database.APIVersion,
+					Kind:       database.Kind,
+					Name:       database.Name,
+					UID:        database.UID,
+				},
+			}))
 		})
 
 		It("Used by the caller, no cleanup", func() {
@@ -189,7 +198,14 @@ var _ = Describe("KubeHelpers test", func() {
 			err = kh.Update(ctx, secretCopy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(secretCopy.GetLabels()).To(Equal(usedByLabels))
-			Expect(secretCopy.GetOwnerReferences()).To(BeEmpty())
+			Expect(secretCopy.GetOwnerReferences()).To(Equal([]metav1.OwnerReference{
+				{
+					APIVersion: database.APIVersion,
+					Kind:       database.Kind,
+					Name:       database.Name,
+					UID:        database.UID,
+				},
+			}))
 		})
 		It("Not used by any, with cleanup", func() {
 			secretName := "suite-3-test-3"
@@ -371,6 +387,57 @@ var _ = Describe("KubeHelpers test", func() {
 			secretCopy.SetLabels(usedByLabels)
 			err = kh.HandleDelete(ctx, secretCopy)
 			Expect(err).To(HaveOccurred())
+		})
+		It("Cleanup disabled orphans the object (owner ref stripped)", func() {
+			secretName := "suite-5-test-4"
+			databaseCopy := database.DeepCopy()
+			databaseCopy.Spec.Cleanup = false
+			rec := events.NewFakeRecorder(1)
+			kh := kube.NewKubeHelper(k8sClient, rec, databaseCopy)
+
+			secretCopy := secret.DeepCopy()
+			secretCopy.SetName(secretName)
+			secretCopy.SetLabels(map[string]string{
+				consts.USED_BY_KIND_LABEL_KEY: databaseCopy.GetObjectKind().GroupVersionKind().Kind,
+				consts.USED_BY_NAME_LABEL_KEY: databaseCopy.GetName(),
+			})
+			secretCopy.SetOwnerReferences([]metav1.OwnerReference{kh.BuildOwnerReference()})
+			Expect(kh.Cli.Create(ctx, secretCopy)).To(Succeed())
+
+			Expect(kh.HandleDelete(ctx, secretCopy)).To(Succeed())
+
+			fetched := &corev1.Secret{}
+			Expect(kh.Cli.Get(ctx, types.NamespacedName{Namespace: secretCopy.GetNamespace(), Name: secretName}, fetched)).To(Succeed())
+			Expect(fetched.GetOwnerReferences()).To(BeEmpty())
+		})
+		It("Cleanup enabled keeps the owner ref so the GC can cascade", func() {
+			secretName := "suite-5-test-5"
+			databaseCopy := database.DeepCopy()
+			databaseCopy.Spec.Cleanup = true
+			rec := events.NewFakeRecorder(1)
+			kh := kube.NewKubeHelper(k8sClient, rec, databaseCopy)
+
+			secretCopy := secret.DeepCopy()
+			secretCopy.SetName(secretName)
+			secretCopy.SetLabels(map[string]string{
+				consts.USED_BY_KIND_LABEL_KEY: databaseCopy.GetObjectKind().GroupVersionKind().Kind,
+				consts.USED_BY_NAME_LABEL_KEY: databaseCopy.GetName(),
+			})
+			secretCopy.SetOwnerReferences([]metav1.OwnerReference{kh.BuildOwnerReference()})
+			Expect(kh.Cli.Create(ctx, secretCopy)).To(Succeed())
+
+			Expect(kh.HandleDelete(ctx, secretCopy)).To(Succeed())
+
+			fetched := &corev1.Secret{}
+			Expect(kh.Cli.Get(ctx, types.NamespacedName{Namespace: secretCopy.GetNamespace(), Name: secretName}, fetched)).To(Succeed())
+			Expect(fetched.GetOwnerReferences()).To(HaveLen(1))
+		})
+		It("Already-deleted object is a no-op", func() {
+			rec := events.NewFakeRecorder(1)
+			kh := kube.NewKubeHelper(k8sClient, rec, database)
+			secretCopy := secret.DeepCopy()
+			secretCopy.SetName("suite-5-test-6-missing")
+			Expect(kh.HandleDelete(ctx, secretCopy)).To(Succeed())
 		})
 	})
 	Context("Test the main handler", func() {
