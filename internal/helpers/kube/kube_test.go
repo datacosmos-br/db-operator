@@ -127,12 +127,28 @@ func TestBuildOwnerReferenceCleanup(t *testing.T) {
 }
 
 func TestBuildOwnerReferenceNotCleanup(t *testing.T) {
+	// Ownership is decoupled from cleanup: a namespaced caller always owns its
+	// generated objects so ArgoCD sees them. Preservation is handled on delete.
 	databaseCopy := database.DeepCopy()
 	databaseCopy.Spec.Cleanup = false
 	kh := &kube.KubeHelper{Caller: databaseCopy}
 	actual := kh.BuildOwnerReference()
-	expected := metav1.OwnerReference{}
+	expected := metav1.OwnerReference{
+		APIVersion: database.APIVersion,
+		Kind:       database.Kind,
+		Name:       database.Name,
+		UID:        database.UID,
+	}
 	assert.Equal(t, expected, actual)
+}
+
+func TestBuildOwnerReferenceClusterScopedCaller(t *testing.T) {
+	// A cluster-scoped caller (empty namespace, e.g. DbInstance) must not own a
+	// namespaced object — Kubernetes rejects such references.
+	databaseCopy := database.DeepCopy()
+	databaseCopy.Namespace = ""
+	kh := &kube.KubeHelper{Caller: databaseCopy}
+	assert.Equal(t, metav1.OwnerReference{}, kh.BuildOwnerReference())
 }
 
 func TestSetOwnerReferenceCleanupOnly(t *testing.T) {
@@ -186,6 +202,7 @@ func TestSetOwnerReferenceCleanupExtra(t *testing.T) {
 }
 
 func TestSetOwnerReferenceNotCleanupOnly(t *testing.T) {
+	// Even without cleanup the caller owns the object (for ArgoCD visibility).
 	databaseCopy := database.DeepCopy()
 	databaseCopy.Spec.Cleanup = false
 	kh := &kube.KubeHelper{Caller: databaseCopy}
@@ -194,7 +211,16 @@ func TestSetOwnerReferenceNotCleanupOnly(t *testing.T) {
 	ownerRef := kh.BuildOwnerReference()
 	actual := kh.SetOwnerReference(secretCopy, ownerRef)
 
-	assert.Equal(t, []metav1.OwnerReference{}, actual.GetOwnerReferences())
+	expected := []metav1.OwnerReference{
+		{
+			APIVersion: database.APIVersion,
+			Kind:       database.Kind,
+			Name:       database.Name,
+			UID:        database.UID,
+		},
+	}
+
+	assert.Equal(t, expected, actual.GetOwnerReferences())
 }
 
 func TestSetOwnerReferenceNotCleanupExtra(t *testing.T) {
@@ -217,7 +243,12 @@ func TestSetOwnerReferenceNotCleanupExtra(t *testing.T) {
 	ownerRef := kh.BuildOwnerReference()
 	actual := kh.SetOwnerReference(secretCopy, ownerRef)
 
-	expected := existingOwnerRef
+	expected := append(existingOwnerRef, metav1.OwnerReference{
+		APIVersion: database.APIVersion,
+		Kind:       database.Kind,
+		Name:       database.Name,
+		UID:        database.UID,
+	})
 
 	assert.Equal(t, expected, actual.GetOwnerReferences())
 }
