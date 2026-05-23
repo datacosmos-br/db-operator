@@ -446,12 +446,6 @@ func (r *DatabaseReconciler) handleDbDelete(ctx context.Context, dbcr *kindav1be
 			// when database deletion failed, don't requeue request. to prevent exceeding api limit (ex: against google api)
 			return r.manageError(ctx, dbcr, err, false, phase)
 		}
-		kci.RemoveFinalizer(&dbcr.ObjectMeta, "db."+dbcr.Name)
-		err = r.Update(ctx, dbcr)
-		if err != nil {
-			log.Error(err, "error resource updating")
-			return r.manageError(ctx, dbcr, err, true, phase)
-		}
 	}
 	// A temporary check that exists to avoid creating templates if secretsTemplates are used.
 	// todo: It should be removed when secretsTemlates are gone
@@ -485,6 +479,18 @@ func (r *DatabaseReconciler) handleDbDelete(ctx context.Context, dbcr *kindav1be
 		}
 	} else {
 		if err := r.kubeHelper.ModifyObject(ctx, dbSecret); err != nil {
+			return r.manageError(ctx, dbcr, err, true, phase)
+		}
+	}
+
+	// Remove the finalizer only after every generated object has been handled
+	// (orphaned when cleanup is disabled, released otherwise). Removing it
+	// earlier would let the owner CR be deleted and the garbage collector
+	// cascade-delete the still-owned Secret/ConfigMap before they are orphaned.
+	if commonhelper.ContainsString(dbcr.Finalizers, "db."+dbcr.Name) {
+		kci.RemoveFinalizer(&dbcr.ObjectMeta, "db."+dbcr.Name)
+		if err := r.Update(ctx, dbcr); err != nil {
+			log.Error(err, "error resource updating")
 			return r.manageError(ctx, dbcr, err, true, phase)
 		}
 	}
