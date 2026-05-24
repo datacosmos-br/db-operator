@@ -143,6 +143,18 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	// ClickHouse: an explicit userName makes the operator manage the SQL user
+	// under that exact name (e.g. adopting a pre-existing user) instead of the
+	// generated "<namespace>-<dbuser>". Force it into the secret so the
+	// persisted credential and the SQL identity stay in agreement on every
+	// reconcile, including when the secret already exists.
+	if dbcr.Status.Engine == "clickhouse" && dbusercr.Spec.Clickhouse != nil && dbusercr.Spec.Clickhouse.UserName != "" {
+		if userSecret.Data == nil {
+			userSecret.Data = map[string][]byte{}
+		}
+		userSecret.Data[consts.CLICKHOUSE_USER] = []byte(dbusercr.Spec.Clickhouse.UserName)
+	}
+
 	// Make sure the secret is reflecting the actual desired state
 	err = r.kubeHelper.HandleCreateOrUpdate(ctx, userSecret)
 	if err != nil {
@@ -233,6 +245,16 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			for _, g := range dbusercr.Spec.Clickhouse.ExtraGrants {
 				dbuser.ExtraGrants = append(dbuser.ExtraGrants,
 					database.Grant{Privileges: g.Privileges, On: g.On})
+			}
+			// Adopt an existing credential by its sha256 hash: the user is
+			// created/altered with IDENTIFIED WITH sha256_hash, preserving the
+			// exact current password without ever handling plaintext.
+			if hf := dbusercr.Spec.Clickhouse.PasswordHashFrom; hf != nil {
+				hash, err := r.kubeHelper.GetValueFrom(ctx, "Secret", dbusercr.Namespace, hf.Name, hf.Key)
+				if err != nil {
+					return r.manageError(ctx, dbusercr, err, false)
+				}
+				dbuser.PasswordHash = hash
 			}
 		}
 		// If allow existing is set to true, db-operator will not force user creation

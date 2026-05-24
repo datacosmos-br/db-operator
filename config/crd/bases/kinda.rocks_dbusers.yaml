@@ -99,6 +99,35 @@ spec:
                       HostRegexp restricts the user to client hosts whose name matches this
                       ClickHouse HOST REGEXP pattern. Empty means no restriction.
                     type: string
+                  passwordHashFrom:
+                    description: |-
+                      PasswordHashFrom adopts an existing credential: the user is created/altered
+                      with IDENTIFIED WITH sha256_hash BY '<hex>' read from the referenced Secret
+                      key, instead of generating a new password. Used to migrate a user into
+                      operator management while preserving its exact current password (the hash
+                      already lives in the cluster, so no plaintext is ever materialised).
+                    properties:
+                      key:
+                        description: The key of the secret to select from.  Must be
+                          a valid secret key.
+                        type: string
+                      name:
+                        default: ""
+                        description: |-
+                          Name of the referent.
+                          This field is effectively required, but due to backwards compatibility is
+                          allowed to be empty. Instances of this type with an empty value here are
+                          almost certainly wrong.
+                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                        type: string
+                      optional:
+                        description: Specify whether the Secret or its key must be
+                          defined
+                        type: boolean
+                    required:
+                    - key
+                    type: object
+                    x-kubernetes-map-type: atomic
                   quota:
                     description: Quota defines a per-user resource quota managed by
                       the operator.
@@ -132,6 +161,12 @@ spec:
                     description: Settings are applied to the user through a managed
                       SETTINGS PROFILE.
                     type: object
+                  userName:
+                    description: |-
+                      UserName overrides the SQL user name. By default the operator names the
+                      user "<namespace>-<dbuser>"; set this to manage a user under an explicit
+                      name — e.g. to adopt a pre-existing user without renaming it.
+                    type: string
                 type: object
               credentials:
                 description: Credentials should be used to setup everything relates
