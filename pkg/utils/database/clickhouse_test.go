@@ -94,6 +94,18 @@ func TestClickhouseGetDatabaseAddress(t *testing.T) {
 	assert.Equal(t, ch.Port, addr.Port)
 }
 
+func TestClickhouseIdentifiedClause(t *testing.T) {
+	// Default: plaintext password.
+	plain := &DatabaseUser{Username: "u", Password: "secret"}
+	assert.Equal(t, " IDENTIFIED BY 'secret'", identifiedClause(plain))
+
+	// Adoption: when a sha256 hash is set it is used verbatim and the
+	// plaintext password is never emitted.
+	adopted := &DatabaseUser{Username: "u", Password: "secret", PasswordHash: "abc123def"}
+	assert.Equal(t, " IDENTIFIED WITH sha256_hash BY 'abc123def'", identifiedClause(adopted))
+	assert.NotContains(t, identifiedClause(adopted), "secret")
+}
+
 func TestClickhouseCreateDatabase(t *testing.T) {
 	ch, user := testClickhouse()
 	ch.Database = "ch_create_db"

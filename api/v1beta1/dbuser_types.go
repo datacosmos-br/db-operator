@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"slices"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -62,6 +63,18 @@ type DbUserSpec struct {
 
 // ClickhouseUser holds ClickHouse-specific RBAC settings applied to a DbUser.
 type ClickhouseUser struct {
+	// UserName overrides the SQL user name. By default the operator names the
+	// user "<namespace>-<dbuser>"; set this to manage a user under an explicit
+	// name — e.g. to adopt a pre-existing user without renaming it.
+	// +optional
+	UserName string `json:"userName,omitempty"`
+	// PasswordHashFrom adopts an existing credential: the user is created/altered
+	// with IDENTIFIED WITH sha256_hash BY '<hex>' read from the referenced Secret
+	// key, instead of generating a new password. Used to migrate a user into
+	// operator management while preserving its exact current password (the hash
+	// already lives in the cluster, so no plaintext is ever materialised).
+	// +optional
+	PasswordHashFrom *corev1.SecretKeySelector `json:"passwordHashFrom,omitempty"`
 	// Quota defines a per-user resource quota managed by the operator.
 	// +optional
 	Quota *ClickhouseQuota `json:"quota,omitempty"`

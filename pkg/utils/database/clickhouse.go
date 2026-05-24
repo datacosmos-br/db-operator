@@ -277,10 +277,21 @@ func hostClause(user *DatabaseUser) string {
 	return ""
 }
 
+// identifiedClause returns the IDENTIFIED clause for CREATE/ALTER USER. When the
+// user carries a PasswordHash it adopts that exact credential via
+// IDENTIFIED WITH sha256_hash (no plaintext is needed or logged); otherwise it
+// sets the plaintext password the operator generated/holds.
+func identifiedClause(user *DatabaseUser) string {
+	if user.PasswordHash != "" {
+		return fmt.Sprintf(" IDENTIFIED WITH sha256_hash BY '%s'", user.PasswordHash)
+	}
+	return fmt.Sprintf(" IDENTIFIED BY '%s'", user.Password)
+}
+
 func (ch ClickHouse) createUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	create := fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'%s IDENTIFIED BY '%s'%s",
-		user.Username, ch.onCluster(), user.Password, hostClause(user))
+	create := fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'%s%s%s",
+		user.Username, ch.onCluster(), identifiedClause(user), hostClause(user))
 
 	if err := ch.executeExec(ctx, "default", create, admin); err != nil {
 		log.Error(err, "failed creating ClickHouse user")
@@ -292,8 +303,8 @@ func (ch ClickHouse) createUser(ctx context.Context, admin *DatabaseUser, user *
 
 func (ch ClickHouse) updateUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	update := fmt.Sprintf("ALTER USER '%s'%s IDENTIFIED BY '%s'%s",
-		user.Username, ch.onCluster(), user.Password, hostClause(user))
+	update := fmt.Sprintf("ALTER USER '%s'%s%s%s",
+		user.Username, ch.onCluster(), identifiedClause(user), hostClause(user))
 
 	if err := ch.executeExec(ctx, "default", update, admin); err != nil {
 		log.Error(err, "failed updating ClickHouse user")

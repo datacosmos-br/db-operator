@@ -33,8 +33,12 @@ type Credentials struct {
 }
 
 type DatabaseUser struct {
-	Username        string `yaml:"user"`
-	Password        string `yaml:"password"`
+	Username string `yaml:"user"`
+	Password string `yaml:"password"`
+	// PasswordHash, when non-empty (ClickHouse only), makes the operator
+	// identify the user via IDENTIFIED WITH sha256_hash BY '<hex>' instead of a
+	// plaintext password — used to adopt an existing credential by its hash.
+	PasswordHash    string
 	AccessType      string
 	ExtraPrivileges []string
 	GrantToAdmin    bool
