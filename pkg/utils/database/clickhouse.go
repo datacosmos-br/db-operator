@@ -249,23 +249,21 @@ func (ch ClickHouse) deleteDatabase(ctx context.Context, admin *DatabaseUser) er
 }
 
 func (ch ClickHouse) createOrUpdateUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
-	log := log.FromContext(ctx)
-	if !ch.isUserExist(ctx, admin, user) {
-		if err := ch.createUser(ctx, admin, user); err != nil {
-			log.Error(err, "failed creating ClickHouse user")
-			return err
-		}
-	} else {
-		if err := ch.updateUser(ctx, admin, user); err != nil {
-			log.Error(err, "failed updating ClickHouse user")
-			return err
-		}
-	}
-
-	if err := ch.setUserPermission(ctx, admin, user); err != nil {
+	// ClickHouse `local_directory` access storage is PER-NODE: a single
+	// (load-balanced) isUserExist probe cannot observe a partial/per-node state, so
+	// branching create-vs-update on it leaves users missing on some nodes (and loops
+	// on ALTER → UNKNOWN_USER). Instead, ALWAYS ensure existence on EVERY node with
+	// CREATE USER IF NOT EXISTS ON CLUSTER (idempotent — skips nodes that already have
+	// the user, heals nodes that don't), then enforce the identity with ALTER ON
+	// CLUSTER. Both are idempotent; together they converge deterministically to
+	// "exists on all nodes" regardless of prior partial state.
+	if err := ch.createUser(ctx, admin, user); err != nil {
 		return err
 	}
-	return nil
+	if err := ch.updateUser(ctx, admin, user); err != nil {
+		return err
+	}
+	return ch.setUserPermission(ctx, admin, user)
 }
 
 // hostClause returns a " HOST REGEXP '<pattern>'" clause restricting which
