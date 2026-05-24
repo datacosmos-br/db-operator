@@ -1,0 +1,33 @@
+api/v1beta1/dbuser_types.go
+  s_aba6b0e4afa092::t_2cef291356ed6f 66-77
+  s_aba6b0e4afa092::t_7b803ca311f394 23
+pkg/utils/database/clickhouse_test.go
+  s_aba6b0e4afa092::t_8278f590f2dc3e 97-108
+internal/controller/dbuser_controller.go
+  s_aba6b0e4afa092::t_56ef8ccebc5b04 146-157
+  s_aba6b0e4afa092::t_291803dec2788f 249-258
+pkg/utils/database/types.go
+  s_aba6b0e4afa092::t_f2518409835cd1 36-41
+pkg/utils/database/clickhouse.go
+  s_aba6b0e4afa092::t_12ceebbc1af5a6 280-290,293-294,306-307
+api/v1beta1/zz_generated.deepcopy.go
+  s_aba6b0e4afa092::t_363a51c08335ec 22,94-98
+config/crd/bases/kinda.rocks_dbusers.yaml
+  s_aba6b0e4afa092::t_363a51c08335ec 102-130,164-169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "a67e9f48ed88a1aebb3de1b28317e317901a7e61",
+  "prompts": {},
+  "sessions": {
+    "s_aba6b0e4afa092": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4e1cf935-8452-4852-8fea-21a306a5a6d1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    }
+  }
+}
