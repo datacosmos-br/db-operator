@@ -48,6 +48,12 @@ type Postgres struct {
 	DropPublicSchema bool
 	Schemas          []string
 	Template         string
+	// Owner, PostInitSQL and CrossDatabaseGrants are derived from
+	// v1beta1.Postgres and applied at the end of createDatabase. See the
+	// CRD field doc for semantics.
+	Owner               string
+	PostInitSQL         []string
+	CrossDatabaseGrants []CrossDatabaseGrant
 	// A user that is created with the Database
 	//  it's required to set default privileges
 	//  for additional users
@@ -428,6 +434,88 @@ func (p Postgres) createDatabase(ctx context.Context, admin *DatabaseUser) error
 		}
 	}
 
+	if err := p.alterDatabaseOwner(ctx, admin); err != nil {
+		return fmt.Errorf("can not alter database owner - %s", err)
+	}
+
+	if err := p.executePostInitSQL(ctx, admin); err != nil {
+		return fmt.Errorf("can not execute postInitSQL - %s", err)
+	}
+
+	if err := p.applyCrossDatabaseGrants(ctx, admin); err != nil {
+		return fmt.Errorf("can not apply cross-database grants - %s", err)
+	}
+
+	return nil
+}
+
+// alterDatabaseOwner transfers ownership of the database (and the public
+// schema) to p.Owner. No-op when Owner is empty. The public-schema reassign
+// is what unblocks PG15+ applications whose user is not the database owner
+// and would otherwise hit "permission denied for schema public" on CREATE.
+func (p Postgres) alterDatabaseOwner(ctx context.Context, admin *DatabaseUser) error {
+	if p.Owner == "" {
+		return nil
+	}
+	log := log.FromContext(ctx)
+	alterDB := fmt.Sprintf("ALTER DATABASE %s OWNER TO %s;",
+		pq.QuoteIdentifier(p.Database),
+		pq.QuoteIdentifier(p.Owner),
+	)
+	if err := p.executeExec(ctx, "postgres", alterDB, admin); err != nil {
+		log.Error(err, "failed ALTER DATABASE OWNER", "database", p.Database, "owner", p.Owner)
+		return err
+	}
+	alterSchema := fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s;",
+		pq.QuoteIdentifier("public"),
+		pq.QuoteIdentifier(p.Owner),
+	)
+	if err := p.executeExec(ctx, p.Database, alterSchema, admin); err != nil {
+		log.Error(err, "failed ALTER SCHEMA public OWNER", "database", p.Database, "owner", p.Owner)
+		return err
+	}
+	return nil
+}
+
+// executePostInitSQL runs each declared PostInitSQL statement as the admin
+// against p.Database. Statements are intended to be idempotent.
+func (p Postgres) executePostInitSQL(ctx context.Context, admin *DatabaseUser) error {
+	log := log.FromContext(ctx)
+	for i, stmt := range p.PostInitSQL {
+		if err := p.executeExec(ctx, p.Database, stmt, admin); err != nil {
+			log.Error(err, "failed executing postInitSQL statement", "index", i, "database", p.Database)
+			return err
+		}
+	}
+	return nil
+}
+
+// applyCrossDatabaseGrants iterates declared cross-database grants and
+// applies the existing setUserPermission flow on each target database by
+// targeting a copy of the receiver at the sibling database. Grants are
+// scoped to the public schema of the target.
+func (p Postgres) applyCrossDatabaseGrants(ctx context.Context, admin *DatabaseUser) error {
+	log := log.FromContext(ctx)
+	for _, grant := range p.CrossDatabaseGrants {
+		for _, targetDB := range grant.Databases {
+			sub := p
+			sub.Database = targetDB
+			sub.Schemas = nil
+			sub.DropPublicSchema = false
+			user := &DatabaseUser{
+				Username:   grant.Username,
+				AccessType: grant.AccessType,
+			}
+			if err := sub.setUserPermission(ctx, admin, user); err != nil {
+				log.Error(err, "failed applying cross-database grant",
+					"username", grant.Username,
+					"targetDB", targetDB,
+					"accessType", grant.AccessType,
+				)
+				return err
+			}
+		}
+	}
 	return nil
 }
 

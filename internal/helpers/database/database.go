@@ -84,6 +84,14 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 		}
 
 		extList := dbcr.Spec.Postgres.Extensions
+		crossGrants := make([]database.CrossDatabaseGrant, 0, len(dbcr.Spec.Postgres.CrossDatabaseGrants))
+		for _, g := range dbcr.Spec.Postgres.CrossDatabaseGrants {
+			crossGrants = append(crossGrants, database.CrossDatabaseGrant{
+				Username:   g.Username,
+				Databases:  g.Databases,
+				AccessType: g.AccessType,
+			})
+		}
 		db := database.Postgres{
 			Backend:                     backend,
 			Host:                        host,
@@ -96,6 +104,9 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 			DropPublicSchema:            dbcr.Spec.Postgres.DropPublicSchema,
 			Schemas:                     dbcr.Spec.Postgres.Schemas,
 			Template:                    dbcr.Spec.Postgres.Template,
+			Owner:                       dbcr.Spec.Postgres.Owner,
+			PostInitSQL:                 dbcr.Spec.Postgres.PostInitSQL,
+			CrossDatabaseGrants:         crossGrants,
 			MainUser:                    dbuser,
 			RDSIAMImpersonateWorkaround: enableRdsIamImpersonate,
 			ForceDelete:                 enableforceDelete,
