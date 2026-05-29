@@ -512,11 +512,70 @@ spec:
                 description: Postgres struct should be used to provide resource that
                   only applicable to postgres
                 properties:
+                  crossDatabaseGrants:
+                    description: |-
+                      CrossDatabaseGrants applies the per-user permission flow (the same
+                      READONLY/READWRITE/MAIN grant logic used for the owning database)
+                      against OTHER databases on the same instance. Use when an
+                      application user must access a sibling database it does not own —
+                      e.g. airbyte-db needs READWRITE on airbyte-visibility for temporal
+                      schema setup. The target user MUST already exist; this field only
+                      grants existing roles. Grants apply on the target database's
+                      public schema only.
+                    items:
+                      description: |-
+                        CrossDatabaseGrant grants a known role access on sibling databases.
+                        Mirrors DbUser AccessType semantics: "readOnly", "readWrite", "main".
+                      properties:
+                        accessType:
+                          description: |-
+                            AccessType is one of "readOnly", "readWrite", or "main" — matches
+                            the DbUser AccessType vocabulary used by setUserPermission.
+                          type: string
+                        databases:
+                          description: |-
+                            Databases is the list of sibling database names on which to grant
+                            access. Each one runs the standard per-database permission flow.
+                          items:
+                            type: string
+                          type: array
+                        username:
+                          description: |-
+                            Username is the role that receives the grants. Must exist on the
+                            instance — the operator does not create or rotate it here.
+                          type: string
+                      required:
+                      - accessType
+                      - databases
+                      - username
+                      type: object
+                    type: array
                   dropPublicSchema:
                     description: If set to true, the public schema will be dropped
                       after the database creation
                     type: boolean
                   extensions:
+                    items:
+                      type: string
+                    type: array
+                  owner:
+                    description: |-
+                      Owner is the role name that becomes the database owner via
+                      ALTER DATABASE ... OWNER TO. The operator also reassigns the public
+                      schema owner so PG15+ rules (CREATE on public follows schema
+                      ownership, not PUBLIC role) let the application user create
+                      objects directly. Empty preserves the legacy behaviour where the
+                      admin role keeps ownership.
+                    type: string
+                  postInitSQL:
+                    description: |-
+                      PostInitSQL is an ordered list of idempotent SQL statements executed
+                      as the admin against this database AFTER creation/extensions/
+                      schemas/owner. Use it for bootstrap DDL such as
+                      "ALTER SCHEMA public OWNER TO ...", "GRANT CREATE ON SCHEMA public
+                      TO ...", or product-specific seed grants. Each statement runs in
+                      its own exec; a failure aborts reconciliation so callers can fix
+                      and retry.
                     items:
                       type: string
                     type: array
