@@ -62,6 +62,47 @@ type Postgres struct {
 	Schemas []string `json:"schemas,omitempty"`
 	// Let user create database from template
 	Template string `json:"template,omitempty"`
+	// Owner is the role name that becomes the database owner via
+	// ALTER DATABASE ... OWNER TO. The operator also reassigns the public
+	// schema owner so PG15+ rules (CREATE on public follows schema
+	// ownership, not PUBLIC role) let the application user create
+	// objects directly. Empty preserves the legacy behaviour where the
+	// admin role keeps ownership.
+	// +optional
+	Owner string `json:"owner,omitempty"`
+	// PostInitSQL is an ordered list of idempotent SQL statements executed
+	// as the admin against this database AFTER creation/extensions/
+	// schemas/owner. Use it for bootstrap DDL such as
+	// "ALTER SCHEMA public OWNER TO ...", "GRANT CREATE ON SCHEMA public
+	// TO ...", or product-specific seed grants. Each statement runs in
+	// its own exec; a failure aborts reconciliation so callers can fix
+	// and retry.
+	// +optional
+	PostInitSQL []string `json:"postInitSQL,omitempty"`
+	// CrossDatabaseGrants applies the per-user permission flow (the same
+	// READONLY/READWRITE/MAIN grant logic used for the owning database)
+	// against OTHER databases on the same instance. Use when an
+	// application user must access a sibling database it does not own —
+	// e.g. airbyte-db needs READWRITE on airbyte-visibility for temporal
+	// schema setup. The target user MUST already exist; this field only
+	// grants existing roles. Grants apply on the target database's
+	// public schema only.
+	// +optional
+	CrossDatabaseGrants []CrossDatabaseGrant `json:"crossDatabaseGrants,omitempty"`
+}
+
+// CrossDatabaseGrant grants a known role access on sibling databases.
+// Mirrors DbUser AccessType semantics: "readOnly", "readWrite", "main".
+type CrossDatabaseGrant struct {
+	// Username is the role that receives the grants. Must exist on the
+	// instance — the operator does not create or rotate it here.
+	Username string `json:"username"`
+	// Databases is the list of sibling database names on which to grant
+	// access. Each one runs the standard per-database permission flow.
+	Databases []string `json:"databases"`
+	// AccessType is one of "readOnly", "readWrite", or "main" — matches
+	// the DbUser AccessType vocabulary used by setUserPermission.
+	AccessType string `json:"accessType"`
 }
 
 // Clickhouse struct should be used to provide resource that only applicable to ClickHouse

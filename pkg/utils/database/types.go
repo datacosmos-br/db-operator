@@ -67,6 +67,16 @@ type Grant struct {
 	On         string
 }
 
+// CrossDatabaseGrant lets an existing role receive the standard
+// setUserPermission flow on databases other than its own. Mirrors
+// v1beta1.CrossDatabaseGrant; kept package-local so this package does not
+// depend on api/v1beta1.
+type CrossDatabaseGrant struct {
+	Username   string
+	Databases  []string
+	AccessType string
+}
+
 // Quota is a per-user resource quota. A limit of 0 is not enforced.
 type Quota struct {
 	IntervalSeconds         int64
