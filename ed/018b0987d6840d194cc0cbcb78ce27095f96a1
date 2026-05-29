@@ -1,0 +1,30 @@
+api/v1beta1/database_types.go
+  s_293c888c148b4f::t_979b093adfb67d 65-105
+pkg/utils/database/types.go
+  s_293c888c148b4f::t_db00be31234823 70-79
+api/v1beta1/zz_generated.deepcopy.go
+  s_293c888c148b4f::t_14e62edcaee1d5 189-207,756-766
+internal/helpers/database/database.go
+  s_293c888c148b4f::t_82cb15f4f82319 87-94,107-109
+config/crd/bases/kinda.rocks_databases.yaml
+  s_293c888c148b4f::t_50051f0587010c 515-552,561-578
+pkg/utils/database/postgres.go
+  s_293c888c148b4f::t_dd7c1ba97a1e52 437-518
+  s_293c888c148b4f::t_ca24a31399ad90 51-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ed018b0987d6840d194cc0cbcb78ce27095f96a1",
+  "prompts": {},
+  "sessions": {
+    "s_293c888c148b4f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "84f06436-ab9b-4911-b5be-a4c1b6ab4b5c",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    }
+  }
+}
