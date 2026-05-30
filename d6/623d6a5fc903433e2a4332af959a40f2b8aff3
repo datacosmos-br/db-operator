@@ -1,0 +1,19 @@
+pkg/utils/database/postgres.go
+  s_dc1f41c4f16175::t_1d64f07a4f53b9 404-414
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d6623d6a5fc903433e2a4332af959a40f2b8aff3",
+  "prompts": {},
+  "sessions": {
+    "s_dc1f41c4f16175": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dd22ab58-67a9-4e47-84fc-8726bdbdd71e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    }
+  }
+}
