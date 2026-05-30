@@ -401,8 +401,17 @@ func (p Postgres) createDatabase(ctx context.Context, admin *DatabaseUser) error
 	if !p.isDbExist(ctx, admin) {
 		err := p.executeExec(ctx, "postgres", create, admin)
 		if err != nil {
-			log.Error(err, "failed creating postgres database")
-			return err
+			// 42P04 = duplicate_database. isDbExist can return a false negative when its
+			// existence-check query fails transiently (e.g. a flaky pgpool/connection timeout),
+			// so CREATE then races a DB that already exists. The DB existing IS the desired
+			// state — treat duplicate_database as idempotent success instead of wedging the
+			// Database CR at status=false forever.
+			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P04" {
+				log.Info("database already exists; treating CREATE as idempotent success", "database", p.Database)
+			} else {
+				log.Error(err, "failed creating postgres database")
+				return err
+			}
 		}
 	}
 
