@@ -1,0 +1,19 @@
+pkg/utils/database/clickhouse.go
+  s_aba6b0e4afa092::t_f469703f85b49f 252-261,263,266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "a796cd43a50b7786a07e6d0bf1f10937ad4beed9",
+  "prompts": {},
+  "sessions": {
+    "s_aba6b0e4afa092": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4e1cf935-8452-4852-8fea-21a306a5a6d1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    }
+  }
+}
