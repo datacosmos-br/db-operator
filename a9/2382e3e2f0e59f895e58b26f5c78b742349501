@@ -1,0 +1,19 @@
+internal/controller/dbuser_controller.go
+  s_bcf12f59cd8383::t_98169ab1590098 101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a92382e3e2f0e59f895e58b26f5c78b742349501",
+  "prompts": {},
+  "sessions": {
+    "s_bcf12f59cd8383": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e8dbc-691d-71c0-9905-2275bff8131a",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Zed <hi@zed.dev>"
+    }
+  }
+}
