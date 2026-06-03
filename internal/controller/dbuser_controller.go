@@ -98,9 +98,7 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// let the db-operator know which exactly user must be removed.
 	userSecret, err := r.getDbUserSecret(ctx, dbusercr)
 	if err != nil {
-		// If a secret is not found on the "delete" event it should be a critical unrecoverable
-		// error, cause we don't know which user must be removed
-		if k8serrors.IsNotFound(err) && !dbusercr.IsDeleted() {
+		if k8serrors.IsNotFound(err) {
 			// Match the referenced Database's name: an explicit spec.databaseName
 			// wins, otherwise fall back to the generated "<namespace>-<ref>".
 			dbName := dbcr.Spec.DatabaseName
