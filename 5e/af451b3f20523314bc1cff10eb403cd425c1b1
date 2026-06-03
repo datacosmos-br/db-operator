@@ -1,0 +1,30 @@
+internal/controller/database_controller.go
+  s_a73eb323c62d37::t_c3f0c0e37258b7 486-497
+internal/helpers/kube/kube_test.go
+  s_a73eb323c62d37::t_bd8c7a68bae6e3 205,214-223,246-251
+  s_a73eb323c62d37::t_9b57f1ba37c855 130-131,136-141,145-151
+internal/helpers/kube/kube.go
+  s_a73eb323c62d37::t_154564544bfde2 73-77
+  s_a73eb323c62d37::t_6fbc1519301433 89-95
+  s_a73eb323c62d37::t_d6591f91a12f7f 213-229
+internal/helpers/kube/kube_suite_test.go
+  s_a73eb323c62d37::t_92ec7685dbc647 201-208
+  s_a73eb323c62d37::t_a8c21504cbce85 391-441
+  s_a73eb323c62d37::t_bc96cc0e9bed71 171-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "5eaf451b3f20523314bc1cff10eb403cd425c1b1",
+  "prompts": {},
+  "sessions": {
+    "s_a73eb323c62d37": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6889aa1a-45af-4cd0-9304-7a9f60a11984",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    }
+  }
+}
