@@ -90,7 +90,7 @@ releases:
     needs:
       - cert-manager/cert-manager
     {{- end }}
-    version: 0.16.1
+    version: 0.16.4
     values:
       - image:
           tag: {{ .Values.databases.mariadb.imageTag | quote }}
@@ -103,7 +103,7 @@ releases:
   - name: postgres-instance
     namespace: databases
     chart: cloudpirates/postgres
-    version: 0.19.1
+    version: 0.19.5
     {{- if .Values.certManager.installed }}
     needs:
       - cert-manager/cert-manager
