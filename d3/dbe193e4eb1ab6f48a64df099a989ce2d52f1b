@@ -1,0 +1,33 @@
+Containerfile
+  s_ec497534621881::t_887cdfec69b3a1 25
+go.mod
+  s_ec497534621881::t_887cdfec69b3a1 22,92-94,96-98,100
+Taskfile.yml
+  s_ec497534621881::t_887cdfec69b3a1 193-220
+.github/workflows/verify-image-build.yaml
+  s_ec497534621881::t_887cdfec69b3a1 1-50
+helmfile.yaml.gotmpl
+  s_ec497534621881::t_887cdfec69b3a1 93,106
+.github/workflows/publish-image-dev.yaml
+  s_ec497534621881::t_887cdfec69b3a1 1-64
+.github/workflows/publish-image-release.yaml
+  s_ec497534621881::t_887cdfec69b3a1 1-65
+documentation/pyproject.toml
+  s_ec497534621881::t_887cdfec69b3a1 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "d3dbe193e4eb1ab6f48a64df099a989ce2d52f1b",
+  "prompts": {},
+  "sessions": {
+    "s_ec497534621881": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "44b505e8-f8c5-4afa-bd2c-114a19a35757",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Zed <hi@zed.dev>"
+    }
+  }
+}
