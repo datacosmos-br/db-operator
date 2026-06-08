@@ -41,7 +41,7 @@ func GCSBackupCron(conf *config.Config, dbcr *kindav1beta1.Database, instance *k
 	return &batchv1.CronJob{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "CronJob",
-			APIVersion: "batch",
+			APIVersion: "batch/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dbcr.Namespace + "-" + dbcr.Name + "-" + "backup",

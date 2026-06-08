@@ -293,7 +293,7 @@ func (m Mysql) createOrUpdateUser(ctx context.Context, admin *DatabaseUser, user
 }
 
 func (m Mysql) createUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
-	create := fmt.Sprintf("CREATE USER `%s` IDENTIFIED BY '%s';", user.Username, user.Password)
+	create := fmt.Sprintf("CREATE USER '%s'@'%%' IDENTIFIED BY '%s';", user.Username, user.Password)
 
 	if !m.isUserExist(ctx, admin, user) {
 		err := m.executeQuery(ctx, create, admin)
@@ -313,7 +313,7 @@ func (m Mysql) createUser(ctx context.Context, admin *DatabaseUser, user *Databa
 }
 
 func (m Mysql) updateUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
-	update := fmt.Sprintf("ALTER USER `%s` IDENTIFIED BY '%s';", user.Username, user.Password)
+	update := fmt.Sprintf("ALTER USER '%s'@'%%' IDENTIFIED BY '%s';", user.Username, user.Password)
 
 	if !m.isUserExist(ctx, admin, user) {
 		err := fmt.Errorf("user doesn't exist yet: %s", user.Username)
@@ -357,7 +357,7 @@ func (m Mysql) setUserPermission(ctx context.Context, admin *DatabaseUser, user 
 		return err
 	}
 	for _, role := range user.ExtraPrivileges {
-		grantRole := fmt.Sprintf("GRANT \"%s\" to \"%s\"", role, user.Username)
+		grantRole := fmt.Sprintf("GRANT \"%s\" TO \"%s\"@'%%'", role, user.Username)
 		if err := m.executeQuery(ctx, grantRole, admin); err != nil {
 			return err
 		}
@@ -374,7 +374,7 @@ func (p Mysql) revokePermissions(ctx context.Context, admin *DatabaseUser, user 
 }
 
 func (m Mysql) deleteUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
-	delete := fmt.Sprintf("DROP USER `%s`;", user.Username)
+	delete := fmt.Sprintf("DROP USER '%s'@'%%';", user.Username)
 
 	if m.isUserExist(ctx, admin, user) {
 		err := m.executeQuery(ctx, delete, admin)
