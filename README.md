@@ -28,3 +28,14 @@ $ helm install --name my-release db-operator/db-operator
 ```
 
 To see more options of helm values, [see the chart repo]([https://github.com/db-operator/charts/tree/main/charts/db-operator])
+
+## Datacosmos Fork
+
+This fork adds the following capabilities on top of upstream `db-operator/db-operator`:
+
+- **ClickHouse engine support** — full RBAC, ON CLUSTER DDL, Replicated engine, quotas, settings profiles, host restrictions, and extra privilege grants.
+- **PostgreSQL extras** — `owner`, `postInitSQL`, and `crossDatabaseGrants` in the `Database` CR.
+- **Operational fixes** — MySQL user SQL host-part fix, CronJob `APIVersion` fix, Postgres/MySQL query timeouts, work-queue starvation prevention, and ArgoCD-compatible ownership tracking.
+- **Release pipeline** — multi-arch container images signed with Cosign, published to GHCR on `*-dc*` tags.
+
+Upstream sync is performed weekly via the `upstream-sync` workflow; merges are reviewed manually.

@@ -215,9 +215,10 @@ func (v *DatabaseCustomValidator) ValidateDelete(ctx context.Context, obj *kinda
 	return nil, nil
 }
 
+var validIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
+
 func isValidIdentifier(identifier string) bool {
-	regex := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
-	return regex.MatchString(identifier)
+	return validIdentifierRegex.MatchString(identifier)
 }
 
 func TestUnitPostgresIdentifierValidator(t *testing.T) {
