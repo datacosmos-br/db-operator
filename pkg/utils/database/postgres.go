@@ -252,7 +252,6 @@ func (p Postgres) checkSchemas(ctx context.Context, user *DatabaseUser) error {
 func (p Postgres) addExtensions(ctx context.Context, admin *DatabaseUser) error {
 	for _, ext := range p.Extensions {
 		query := fmt.Sprintf("CREATE EXTENSION IF NOT EXISTS %s;", pq.QuoteIdentifier(ext))
-		fmt.Println(query)
 		err := p.executeExec(ctx, p.Database, query, admin)
 		if err != nil {
 			return err
@@ -276,7 +275,6 @@ func (p Postgres) enableMonitoring(ctx context.Context, admin *DatabaseUser) err
 func (p Postgres) checkExtensions(ctx context.Context, user *DatabaseUser) error {
 	for _, ext := range p.Extensions {
 		query := fmt.Sprintf("SELECT 1 FROM pg_extension WHERE extname = %s;", pq.QuoteLiteral(ext))
-		fmt.Println(query)
 		if !p.isRowExist(ctx, p.Database, query, user.Username, user.Password) {
 			return fmt.Errorf("couldn't find extension %s in database %s", ext, p.Database)
 		}

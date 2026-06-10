@@ -124,7 +124,7 @@ func (ch ClickHouse) isRowExist(ctx context.Context, database, query, user, pass
 	defer db.Close()
 
 	var name string
-	err = db.QueryRow(query).Scan(&name)
+	err = db.QueryRowContext(ctx, query).Scan(&name)
 	if err != nil {
 		log.V(2).Info("failed executing query", "error", err)
 		return false
@@ -142,7 +142,7 @@ func (ch ClickHouse) CheckStatus(ctx context.Context, user *DatabaseUser) error 
 		return fmt.Errorf("db conn test failed - couldn't get db conn: %s", err)
 	}
 	defer db.Close()
-	res, err := db.Query("SELECT 1")
+	res, err := db.QueryContext(ctx, "SELECT 1")
 	if err != nil {
 		return fmt.Errorf("db conn test failed - failed to execute query: %s", err)
 	}
@@ -196,7 +196,7 @@ func (ch ClickHouse) QueryAsUser(ctx context.Context, query string, user *Databa
 	defer db.Close()
 
 	var result string
-	if err := db.QueryRow(query).Scan(&result); err != nil {
+	if err := db.QueryRowContext(ctx, query).Scan(&result); err != nil {
 		log.Error(err, "failed executing query", "query", query)
 		return "", err
 	}

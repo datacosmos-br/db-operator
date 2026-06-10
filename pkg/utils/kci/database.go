@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2021 kloeckner.i GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +23,8 @@ import (
 	"strings"
 )
 
+var unsupportedCharsRegex = regexp.MustCompile(`[^0-9a-zA-Z$_]`)
+
 // StringSanitize sanitizes and truncates a string to a fixed length using a hash function.
 // useful for restricting the length and content of user supplied database identifiers.
 func StringSanitize(s string, limit int) string {
@@ -32,8 +34,7 @@ func StringSanitize(s string, limit int) string {
 
 	// Strip out any unsupported characters.
 	// https://dev.mysql.com/doc/refman/5.7/en/identifiers.html
-	unsupportedChars := regexp.MustCompile(`[^0-9a-zA-Z$_]`)
-	s = unsupportedChars.ReplaceAllString(s, "_")
+	s = unsupportedCharsRegex.ReplaceAllString(s, "_")
 
 	if len(s) <= limit {
 		return s
