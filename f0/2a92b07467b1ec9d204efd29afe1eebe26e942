@@ -1,0 +1,23 @@
+internal/controller/dbuser_controller.go
+  s_766c358d84b6e2::t_a0ffe36664d576 93-114
+pkg/utils/database/clickhouse.go
+  s_766c358d84b6e2::t_bdab22fe1ebff7 343-347,355-359,369-373,389-404
+pkg/utils/database/postgres.go
+  s_766c358d84b6e2::t_109638b884d065 541-548
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "f02a92b07467b1ec9d204efd29afe1eebe26e942",
+  "prompts": {},
+  "sessions": {
+    "s_766c358d84b6e2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f70874aa-b264-42d3-b8bb-d7dde6bfa0a2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    }
+  }
+}
