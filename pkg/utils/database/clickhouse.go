@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -339,8 +340,11 @@ func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser,
 	grant := fmt.Sprintf("GRANT%s %s ON `%s`.* TO '%s'",
 		ch.onCluster(), privileges, ch.Database, user.Username)
 	if err := ch.executeExec(ctx, ch.Database, grant, admin); err != nil {
-		log.Error(err, "failed granting privileges to ClickHouse user")
-		return err
+		if !isAlreadyGranted(err) {
+			log.Error(err, "failed granting privileges to ClickHouse user")
+			return err
+		}
+		log.V(2).Info("privileges already granted, treating as idempotent success", "user", user.Username)
 	}
 
 	// ExtraPrivileges are pre-existing RBAC roles — the operator grants them
@@ -348,8 +352,11 @@ func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser,
 	for _, role := range user.ExtraPrivileges {
 		grantRole := fmt.Sprintf("GRANT%s %s TO '%s'", ch.onCluster(), role, user.Username)
 		if err := ch.executeExec(ctx, ch.Database, grantRole, admin); err != nil {
-			log.Error(err, "failed granting role to ClickHouse user", "role", role)
-			return err
+			if !isAlreadyGranted(err) {
+				log.Error(err, "failed granting role to ClickHouse user", "role", role)
+				return err
+			}
+			log.V(2).Info("role already granted, treating as idempotent success", "user", user.Username, "role", role)
 		}
 	}
 
@@ -359,8 +366,11 @@ func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser,
 		grant := fmt.Sprintf("GRANT%s %s ON %s TO '%s'",
 			ch.onCluster(), g.Privileges, g.On, user.Username)
 		if err := ch.executeExec(ctx, ch.Database, grant, admin); err != nil {
-			log.Error(err, "failed granting extra privilege to ClickHouse user", "on", g.On)
-			return err
+			if !isAlreadyGranted(err) {
+				log.Error(err, "failed granting extra privilege to ClickHouse user", "on", g.On)
+				return err
+			}
+			log.V(2).Info("extra grant already granted, treating as idempotent success", "user", user.Username, "on", g.On)
 		}
 	}
 
@@ -374,6 +384,24 @@ func (ch ClickHouse) setUserPermission(ctx context.Context, admin *DatabaseUser,
 	}
 
 	return nil
+}
+
+// isAlreadyGranted returns true when err indicates that ClickHouse rejected the
+// operation because the privilege or role is already granted. ClickHouse error
+// messages vary by version and privilege type (e.g. "Privilege ... is already
+// granted", "Role ... is already granted", "already has privilege ..."), so we
+// match on the lower-cased message substring.
+func isAlreadyGranted(err error) bool {
+	if err == nil {
+		return false
+	}
+	var ex *proto.Exception
+	if errors.As(err, &ex) {
+		msg := strings.ToLower(ex.Message)
+		return strings.Contains(msg, "already granted") ||
+			strings.Contains(msg, "already has")
+	}
+	return false
 }
 
 // chQuotaName / chProfileName build deterministic names for the operator-managed

@@ -538,6 +538,14 @@ func (p Postgres) deleteDatabase(ctx context.Context, admin *DatabaseUser) error
 	if p.isDbExist(ctx, admin) {
 		err := p.executeExec(ctx, "postgres", revoke, admin)
 		if err != nil {
+			// 3D000 = invalid_catalog_name. The DB can be dropped by another
+			// process (or a prior interrupted reconcile) between isDbExist and
+			// REVOKE. The desired state is "DB does not exist" — treat as success.
+			pqErr, ok := err.(*pq.Error)
+			if ok && pqErr.Code == "3D000" {
+				log.Info("database already dropped during revoke, treating as idempotent success", "database", p.Database)
+				return nil
+			}
 			log.Error(err, "failed revoking connection on database", "connection", revoke)
 			return err
 		}

@@ -205,6 +205,12 @@ func (r *DatabaseReconciler) healthCheckAdmin(ctx context.Context, dbcr *kindav1
 	var dbSecret *corev1.Secret
 	dbSecret, err := r.getDatabaseSecret(ctx, dbcr)
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			// The database secret hasn't been created yet (initial provisioning).
+			// Treat as not-ready-yet rather than failed so Status doesn't flicker
+			// to false before createDatabase has a chance to run.
+			return nil
+		}
 		return err
 	}
 
@@ -688,11 +694,6 @@ func (r *DatabaseReconciler) createDatabase(ctx context.Context, dbcr *kindav1be
 	kci.AddFinalizer(&dbcr.ObjectMeta, "db."+dbcr.Name)
 
 	commonhelper.AddDBChecksum(dbcr, dbSecret)
-	err = r.Update(ctx, dbcr)
-	if err != nil {
-		return err
-	}
-
 	err = r.Update(ctx, dbcr)
 	if err != nil {
 		log.Error(err, "error resource updating")

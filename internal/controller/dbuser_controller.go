@@ -90,6 +90,28 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// Get the DB by the reference provided in the manifest
 	dbcr := &kindav1beta1.Database{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: dbusercr.Spec.DatabaseRef}, dbcr); err != nil {
+		if k8serrors.IsNotFound(err) {
+			// If the DbUser is being deleted and the Database CR is already gone,
+			// there is no backend cross-reference to clean up. Remove the secret
+			// (if it still exists) and the DbUser finalizer so deletion can proceed.
+			if dbusercr.IsDeleted() && commonhelper.ContainsString(dbusercr.Finalizers, "dbuser."+dbusercr.Name) {
+				log.Info("referenced Database already deleted, cleaning up DbUser finalizers", "databaseRef", dbusercr.Spec.DatabaseRef)
+				if userSecret, secErr := r.getDbUserSecret(ctx, dbusercr); secErr == nil {
+					if delErr := r.kubeHelper.HandleDelete(ctx, userSecret); delErr != nil {
+						return r.manageError(ctx, dbusercr, delErr, false)
+					}
+				} else if !k8serrors.IsNotFound(secErr) {
+					return r.manageError(ctx, dbusercr, secErr, false)
+				}
+				kci.RemoveFinalizer(&dbusercr.ObjectMeta, "dbuser."+dbusercr.Name)
+				if updErr := r.Update(ctx, dbusercr); updErr != nil {
+					log.Error(updErr, "error resource updating")
+					return r.manageError(ctx, dbusercr, updErr, false)
+				}
+				return reconcileResult, nil
+			}
+			return r.manageError(ctx, dbusercr, err, false)
+		}
 		return r.manageError(ctx, dbusercr, err, false)
 	}
 
@@ -563,16 +585,19 @@ func (r *DbUserReconciler) getDatabaseConfigMap(ctx context.Context, dbcr *kinda
 
 func (r *DbUserReconciler) addFinalizers(ctx context.Context, dbusercr *kindav1beta1.DbUser, dbcr *kindav1beta1.Database) (err error) {
 	log := log.FromContext(ctx)
-	kci.AddFinalizer(&dbusercr.ObjectMeta, "dbuser."+dbusercr.Name)
-	err = r.Update(ctx, dbusercr)
+	// Add the cross-reference finalizer on the Database CR first: it is the
+	// authoritative owner of the dbuser.<name> reference. If this update fails,
+	// the DbUser CR is still clean (no finalizer) and will be retried.
+	kci.AddFinalizer(&dbcr.ObjectMeta, "dbuser."+dbusercr.Name)
+	err = r.Update(ctx, dbcr)
 	if err != nil {
 		log.Error(err, "error resource updating")
 		return err
 	}
-	kci.AddFinalizer(&dbcr.ObjectMeta, "dbuser."+dbusercr.Name)
-	err = r.Update(ctx, dbcr)
+	kci.AddFinalizer(&dbusercr.ObjectMeta, "dbuser."+dbusercr.Name)
+	err = r.Update(ctx, dbusercr)
 	if err != nil {
-		log.Error(err, "error resource updatinsr")
+		log.Error(err, "error resource updating")
 		return err
 	}
 	return nil
