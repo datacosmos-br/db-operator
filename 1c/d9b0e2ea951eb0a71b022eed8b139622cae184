@@ -1,0 +1,39 @@
+internal/webhook/v1beta1/database_webhook.go
+  s_766c358d84b6e2::t_85eecc2ab1a0f8 218-219,221
+pkg/utils/database/clickhouse.go
+  s_68ab3b967b2582::t_840951e2b9664f 127
+pkg/utils/kci/database.go
+  s_4af56065d21da0::t_fb81d88c802bcc 1,26-27,37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "1cd9b0e2ea951eb0a71b022eed8b139622cae184",
+  "prompts": {},
+  "sessions": {
+    "s_4af56065d21da0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "192b384b-fc96-479d-aa4b-597651f69de5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    },
+    "s_68ab3b967b2582": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7627480e-5c4e-4864-8518-e3cbf3982b1a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    },
+    "s_766c358d84b6e2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f70874aa-b264-42d3-b8bb-d7dde6bfa0a2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Marlon Costa <marlon.costa@datacosmos.com.br>"
+    }
+  }
+}
