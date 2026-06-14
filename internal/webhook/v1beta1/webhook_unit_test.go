@@ -74,7 +74,8 @@ func TestUnitSecretTemplatesValidator(t *testing.T) {
 	err = webhook.ValidateSecretTemplates(invalidTemplates)
 	assert.Errorf(t, err, "should get error %v", err)
 	assert.Contains(t, err.Error(), invalidField, "the error doesn't contain expected substring")
-	assert.Contains(t, err.Error(),
+	assert.Contains(
+		t, err.Error(),
 		"[.Protocol .DatabaseHost .DatabasePort .UserName .Password .DatabaseName]",
 		"the error doesn't contain expected substring",
 	)

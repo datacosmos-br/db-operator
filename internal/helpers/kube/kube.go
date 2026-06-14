@@ -78,7 +78,8 @@ func (kh *KubeHelper) HandleDelete(ctx context.Context, obj client.Object) error
 		return err
 	}
 	if !kh.IsUsedByCaller(obj) {
-		return fmt.Errorf("%s %s is not used by %s %s, editing is not possible",
+		return fmt.Errorf(
+			"%s %s is not used by %s %s, editing is not possible",
 			obj.GetObjectKind().GroupVersionKind().Kind,
 			obj.GetName(),
 			kh.Caller.GetObjectKind().GroupVersionKind().Kind,
@@ -140,7 +141,8 @@ func (kh *KubeHelper) Update(ctx context.Context, obj client.Object) error {
 	}
 	// Check if the object isn't used by a caller
 	if !kh.IsUsedByCaller(obj) {
-		return fmt.Errorf("%s %s is not used by %s %s, editing is not possible",
+		return fmt.Errorf(
+			"%s %s is not used by %s %s, editing is not possible",
 			obj.GetObjectKind().GroupVersionKind().Kind,
 			obj.GetName(),
 			kh.Caller.GetObjectKind().GroupVersionKind().Kind,

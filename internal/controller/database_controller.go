@@ -940,7 +940,8 @@ func (r *DatabaseReconciler) handleTemplatedCredentials(ctx context.Context, dbc
 
 func (r *DatabaseReconciler) createTemplatedSecrets(ctx context.Context, dbcr *kindav1beta1.Database) error {
 	if len(dbcr.Spec.SecretsTemplates) > 0 {
-		r.Recorder.Eventf(dbcr, nil, corev1.EventTypeWarning, "Deprecation", "Secrets Templates",
+		r.Recorder.Eventf(
+			dbcr, nil, corev1.EventTypeWarning, "Deprecation", "Secrets Templates",
 			"secretsTemplates are deprecated and will be removed in the next API version. Please consider using templates",
 		)
 		// First of all the password should be taken from secret because it's not stored anywhere else

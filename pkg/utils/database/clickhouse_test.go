@@ -420,7 +420,8 @@ func TestClickhouseClusterReplicatedDatabase(t *testing.T) {
 
 	dbOnAllNodes := fmt.Sprintf(
 		"SELECT count() FROM clusterAllReplicas('%s', system.databases) WHERE name = 'ch_cl_repl_db'",
-		test.GetClickhouseClusterName())
+		test.GetClickhouseClusterName(),
+	)
 
 	assert.NoError(t, ch.createDatabase(context.TODO(), admin))
 	// A Replicated database created ON CLUSTER must exist on every node.
@@ -445,7 +446,8 @@ func TestClickhouseClusterUserPropagation(t *testing.T) {
 
 	userOnAllNodes := fmt.Sprintf(
 		"SELECT count() FROM clusterAllReplicas('%s', system.users) WHERE name = 'ch_cl_user'",
-		test.GetClickhouseClusterName())
+		test.GetClickhouseClusterName(),
+	)
 
 	assert.NoError(t, ch.createDatabase(context.TODO(), admin))
 	assert.NoError(t, ch.createOrUpdateUser(context.TODO(), admin, user))
@@ -478,7 +480,8 @@ func TestClickhouseClusterReplicatedDDL(t *testing.T) {
 	tableOnAllNodes := fmt.Sprintf(
 		"SELECT count() FROM clusterAllReplicas('%s', system.tables) "+
 			"WHERE database = 'ch_cl_ddl_db' AND name = 'events'",
-		test.GetClickhouseClusterName())
+		test.GetClickhouseClusterName(),
+	)
 	// Replicated-database DDL propagation is asynchronous; poll briefly.
 	replicated := false
 	for range 40 {

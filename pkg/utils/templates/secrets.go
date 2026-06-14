@@ -63,7 +63,8 @@ func ParseTemplatedSecretsData(ctx context.Context, dbcr *kindav1beta1.Database,
 			delete(data, key)
 			cred.TemplatedSecrets[key] = string(secret)
 		} else {
-			log.Info("key does not exist in secret data",
+			log.Info(
+				"key does not exist in secret data",
 				"key", key,
 				"namespace", dbcr.Namespace,
 				"name", dbcr.Name,
@@ -104,7 +105,8 @@ func GenerateTemplatedSecrets(ctx context.Context, dbcr *kindav1beta1.Database, 
 	log.Info("creating secrets from templates", "namespace", dbcr.Namespace, "name", dbcr.Name)
 	for key, value := range templates {
 		if slices.Contains(getBlockedTempatedKeys(), key) {
-			log.Info("key can't be used for templating, because it's used for default secret created by operator",
+			log.Info(
+				"key can't be used for templating, because it's used for default secret created by operator",
 				"key", key,
 				"namespace", dbcr.Namespace,
 				"name", dbcr.Name,
@@ -133,7 +135,8 @@ func AppendTemplatedSecretData(ctx context.Context, dbcr *kindav1beta1.Database,
 	blockedTempatedKeys := getBlockedTempatedKeys()
 	for key, value := range newSecretFields {
 		if slices.Contains(blockedTempatedKeys, key) {
-			log.Info("key can't be used for templating, because it's used for default secret created by operator",
+			log.Info(
+				"key can't be used for templating, because it's used for default secret created by operator",
 				"key", key,
 				"namespace", dbcr.Namespace,
 				"name", dbcr.Name,
@@ -153,7 +156,8 @@ func RemoveObsoleteSecret(ctx context.Context, dbcr *kindav1beta1.Database, secr
 		if _, ok := newSecretFields[key]; !ok {
 			// Check if is a untemplatead secret, so it's not removed accidentally
 			if !slices.Contains(blockedTempatedKeys, key) {
-				log.Info("removing an obsolete field",
+				log.Info(
+					"removing an obsolete field",
 					"key", key,
 					"namespace", dbcr.Namespace,
 					"name", dbcr.Name,

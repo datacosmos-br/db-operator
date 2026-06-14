@@ -560,7 +560,8 @@ func TestUnitRenderAppendCustomSecret(t *testing.T) {
 		t.Error(err)
 	}
 	assert.Equal(t, expectedResult, templateds.SecretK8sObj.Data)
-	assert.Equal(t, "STRING,PASSWORD,REUSE_PREVIOUS,SEC_PASSWORD,GO_FUNCTION",
+	assert.Equal(
+		t, "STRING,PASSWORD,REUSE_PREVIOUS,SEC_PASSWORD,GO_FUNCTION",
 		templateds.SecretK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY],
 	)
 }
@@ -605,7 +606,8 @@ func TestUnitRenderCleanupSecret(t *testing.T) {
 		t.Error(err)
 	}
 	assert.Equal(t, expectedResult, templateds.SecretK8sObj.Data)
-	assert.Equal(t, "PASSWORD",
+	assert.Equal(
+		t, "PASSWORD",
 		templateds.SecretK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY],
 	)
 }
@@ -669,7 +671,8 @@ func TestUnitRenderAppendCustomConfigMap(t *testing.T) {
 		t.Error(err)
 	}
 	assert.Equal(t, expectedResult, templateds.ConfigMapK8sObj.Data)
-	assert.Equal(t, "STRING,PASSWORD,REUSE_PREVIOUS,SSL_MODE_AGAIN",
+	assert.Equal(
+		t, "STRING,PASSWORD,REUSE_PREVIOUS,SSL_MODE_AGAIN",
 		templateds.ConfigMapK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY],
 	)
 }
@@ -719,7 +722,8 @@ func TestUnitRenderCleanupConfigmMap(t *testing.T) {
 	// - PASSWORD -> Should not be removed
 	// - STRING   -> Should be removed
 	assert.Equal(t, expectedResult, templateds.ConfigMapK8sObj.Data)
-	assert.Equal(t, "PASSWORD",
+	assert.Equal(
+		t, "PASSWORD",
 		templateds.ConfigMapK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY],
 	)
 }
