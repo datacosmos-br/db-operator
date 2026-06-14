@@ -249,6 +249,12 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		dbuser.Password = creds.Password
 		dbuser.Username = creds.Username
 
+		// Postgres-only: a schema owned by this user + its search_path. The
+		// operator (as the instance admin) provisions it declaratively, so
+		// shared-DB consumers stop relying on bootstrap DDL in migration Jobs.
+		dbuser.Schema = dbusercr.Spec.Schema
+		dbuser.SearchPath = dbusercr.Spec.SearchPath
+
 		// ClickHouse-only RBAC settings (quota / settings profile / host
 		// restriction / extra grants)
 		if dbcr.Status.Engine == "clickhouse" && dbusercr.Spec.Clickhouse != nil {

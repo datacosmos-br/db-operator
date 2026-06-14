@@ -195,6 +195,72 @@ func TestPostgresMainUserLifecycle(t *testing.T) {
 	assert.NoError(t, p.execAsUser(context.TODO(), drop, dbu))
 }
 
+func TestPostgresUserSchemaOwnership(t *testing.T) {
+	admin := getPostgresAdmin()
+	p, mainUser := testPostgres()
+	p.Database = "schemaownertest"
+	assert.NoError(t, p.createDatabase(context.TODO(), admin))
+	// p.MainUser must exist before a readWrite user (ALTER DEFAULT PRIVILEGES
+	// FOR ROLE <main>). Idempotent so it also works inside the full suite.
+	assert.NoError(t, p.createOrUpdateUser(context.TODO(), admin, mainUser))
+
+	// A per-app consumer user that should own its own schema with a
+	// search_path pointed at it (ADR-111 shared-DB consumer).
+	dbu := &DatabaseUser{
+		Username:     "schemauser",
+		Password:     "schemapassword",
+		AccessType:   ACCESS_TYPE_READWRITE,
+		GrantToAdmin: true,
+		Schema:       "appschema",
+	}
+	assert.NoError(t, p.createOrUpdateUser(context.TODO(), admin, dbu))
+
+	ownedByUser := "SELECT 1 FROM pg_namespace n JOIN pg_roles r ON n.nspowner = r.oid WHERE n.nspname = 'appschema' AND r.rolname = 'schemauser'"
+	assert.True(t, p.isRowExist(context.TODO(), p.Database, ownedByUser, admin.Username, admin.Password),
+		"schema appschema must be owned by schemauser")
+
+	searchPathSet := "SELECT 1 FROM pg_db_role_setting s JOIN pg_roles r ON s.setrole = r.oid JOIN pg_database d ON s.setdatabase = d.oid WHERE r.rolname = 'schemauser' AND d.datname = 'schemaownertest' AND array_to_string(s.setconfig, ',') LIKE '%search_path=appschema, public%'"
+	assert.True(t, p.isRowExist(context.TODO(), p.Database, searchPathSet, admin.Username, admin.Password),
+		"schemauser search_path must default to [appschema, public]")
+
+	// The user owns its schema, so it can create objects there with the
+	// default (unqualified) search_path — no bootstrap GRANT needed.
+	assert.NoError(t, p.execAsUser(context.TODO(), "CREATE TABLE appschema.owned_by_user (id int)", dbu))
+
+	// Idempotent: a second reconcile must not error.
+	assert.NoError(t, p.setUserPermission(context.TODO(), admin, dbu))
+	assert.True(t, p.isRowExist(context.TODO(), p.Database, ownedByUser, admin.Username, admin.Password),
+		"schema ownership must remain stable across reconciles")
+}
+
+func TestPostgresUserSchemaOwnershipConvergesDrift(t *testing.T) {
+	admin := getPostgresAdmin()
+	p, mainUser := testPostgres()
+	p.Database = "schemadrifttest"
+	assert.NoError(t, p.createDatabase(context.TODO(), admin))
+	assert.NoError(t, p.createOrUpdateUser(context.TODO(), admin, mainUser))
+
+	// Simulate drift: the schema already exists, owned by the admin (e.g. a
+	// legacy migration Job created it). ensureUserSchema must converge the
+	// owner to the consumer user — the exact dc-dese canary situation.
+	p.Schemas = []string{"driftschema"}
+	assert.NoError(t, p.createSchemas(context.TODO(), admin)) // admin owns it
+	p.Schemas = []string{}
+
+	dbu := &DatabaseUser{
+		Username:     "driftuser",
+		Password:     "driftpassword",
+		AccessType:   ACCESS_TYPE_READWRITE,
+		GrantToAdmin: true,
+		Schema:       "driftschema",
+	}
+	assert.NoError(t, p.createOrUpdateUser(context.TODO(), admin, dbu))
+
+	ownedByUser := "SELECT 1 FROM pg_namespace n JOIN pg_roles r ON n.nspowner = r.oid WHERE n.nspname = 'driftschema' AND r.rolname = 'driftuser'"
+	assert.True(t, p.isRowExist(context.TODO(), p.Database, ownedByUser, admin.Username, admin.Password),
+		"pre-existing schema owner must converge to driftuser")
+}
+
 func TestPostgresReadOnlyUserLifecycleNoAdminGrant(t *testing.T) {
 	// Test if it's created
 	admin := getPostgresAdmin()

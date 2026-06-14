@@ -59,6 +59,12 @@ type DatabaseUser struct {
 	// ExtraGrants are extra privilege grants applied to the user beyond the
 	// per-database grant (e.g. cluster-wide or system-table privileges).
 	ExtraGrants []Grant
+	// Schema (Postgres only) is a schema provisioned OWNED BY this user, with
+	// the user's per-database search_path pointed at it. Empty = no-op.
+	Schema string
+	// SearchPath overrides the role search_path applied when Schema is set.
+	// Empty defaults to [Schema, public]. Postgres only.
+	SearchPath []string
 }
 
 // Grant is a privilege grant: GRANT <Privileges> ON <On> TO user.

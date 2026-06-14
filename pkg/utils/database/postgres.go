@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	// Don't delete below package. Used for driver "cloudsqlpostgres"
@@ -465,7 +466,8 @@ func (p Postgres) alterDatabaseOwner(ctx context.Context, admin *DatabaseUser) e
 		return nil
 	}
 	log := log.FromContext(ctx)
-	alterDB := fmt.Sprintf("ALTER DATABASE %s OWNER TO %s;",
+	alterDB := fmt.Sprintf(
+		"ALTER DATABASE %s OWNER TO %s;",
 		pq.QuoteIdentifier(p.Database),
 		pq.QuoteIdentifier(p.Owner),
 	)
@@ -473,7 +475,8 @@ func (p Postgres) alterDatabaseOwner(ctx context.Context, admin *DatabaseUser) e
 		log.Error(err, "failed ALTER DATABASE OWNER", "database", p.Database, "owner", p.Owner)
 		return err
 	}
-	alterSchema := fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s;",
+	alterSchema := fmt.Sprintf(
+		"ALTER SCHEMA %s OWNER TO %s;",
 		pq.QuoteIdentifier("public"),
 		pq.QuoteIdentifier(p.Owner),
 	)
@@ -514,7 +517,8 @@ func (p Postgres) applyCrossDatabaseGrants(ctx context.Context, admin *DatabaseU
 				AccessType: grant.AccessType,
 			}
 			if err := sub.setUserPermission(ctx, admin, user); err != nil {
-				log.Error(err, "failed applying cross-database grant",
+				log.Error(
+					err, "failed applying cross-database grant",
 					"username", grant.Username,
 					"targetDB", targetDB,
 					"accessType", grant.AccessType,
@@ -680,13 +684,15 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 		for _, s := range schemas {
 			grantUsage := fmt.Sprintf("GRANT USAGE ON SCHEMA \"%s\" TO \"%s\"", s, user.Username)
 			grantTables := fmt.Sprintf("GRANT SELECT, INSERT, DELETE, UPDATE, TRUNCATE ON ALL TABLES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
-			defaultPrivileges := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT SELECT, INSERT, DELETE, UPDATE, TRUNCATE ON TABLES TO \"%s\";",
+			defaultPrivileges := fmt.Sprintf(
+				"ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT SELECT, INSERT, DELETE, UPDATE, TRUNCATE ON TABLES TO \"%s\";",
 				p.MainUser.Username,
 				s,
 				user.Username,
 			)
 			grantSequences := fmt.Sprintf("GRANT UPDATE, USAGE, SELECT ON ALL SEQUENCES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
-			defaultPrivilegesSeq := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT UPDATE, USAGE, SELECT ON SEQUENCES TO \"%s\";",
+			defaultPrivilegesSeq := fmt.Sprintf(
+				"ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT UPDATE, USAGE, SELECT ON SEQUENCES TO \"%s\";",
 				p.MainUser.Username,
 				s,
 				user.Username,
@@ -737,13 +743,15 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 		for _, s := range schemas {
 			grantUsage := fmt.Sprintf("GRANT USAGE ON SCHEMA \"%s\" TO \"%s\"", s, user.Username)
 			grantTables := fmt.Sprintf("GRANT SELECT ON ALL TABLES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
-			defaultPrivileges := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT SELECT ON TABLES TO \"%s\";",
+			defaultPrivileges := fmt.Sprintf(
+				"ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT SELECT ON TABLES TO \"%s\";",
 				p.MainUser.Username,
 				s,
 				user.Username,
 			)
 			grantSequences := fmt.Sprintf("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA \"%s\" TO \"%s\"", s, user.Username)
-			defaultPrivilegesSeq := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT USAGE, SELECT ON SEQUENCES TO \"%s\";",
+			defaultPrivilegesSeq := fmt.Sprintf(
+				"ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" GRANT USAGE, SELECT ON SEQUENCES TO \"%s\";",
 				p.MainUser.Username,
 				s,
 				user.Username,
@@ -799,6 +807,52 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 		}
 	}
 
+	if err := p.ensureUserSchema(ctx, admin, user); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ensureUserSchema provisions, idempotently, a schema OWNED BY the user and
+// points the user's per-database search_path at it. No-op when user.Schema is
+// empty. Runs as the instance admin (a superuser, or a role that is a member of
+// the user role), so it can assign ownership and alter the role's search_path.
+// This is what lets multiple per-app consumers share one database, each owning
+// its own schema, without bootstrap DDL in migration Jobs (ADR-111).
+func (p Postgres) ensureUserSchema(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
+	if user.Schema == "" {
+		return nil
+	}
+	log := log.FromContext(ctx)
+
+	searchPath := user.SearchPath
+	if len(searchPath) == 0 {
+		searchPath = []string{user.Schema, "public"}
+	}
+	quoted := make([]string, 0, len(searchPath))
+	for _, s := range searchPath {
+		quoted = append(quoted, pq.QuoteIdentifier(s))
+	}
+
+	// CREATE handles the fresh case (schema owned by the user from the start);
+	// ALTER OWNER converges a schema that already exists under a different owner
+	// (e.g. created by a legacy migration Job). Both are idempotent.
+	stmts := []string{
+		fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s AUTHORIZATION %s;",
+			pq.QuoteIdentifier(user.Schema), pq.QuoteIdentifier(user.Username)),
+		fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s;",
+			pq.QuoteIdentifier(user.Schema), pq.QuoteIdentifier(user.Username)),
+		fmt.Sprintf("ALTER ROLE %s IN DATABASE %s SET search_path TO %s;",
+			pq.QuoteIdentifier(user.Username), pq.QuoteIdentifier(p.Database), strings.Join(quoted, ", ")),
+	}
+	for _, stmt := range stmts {
+		if err := p.executeExec(ctx, p.Database, stmt, admin); err != nil {
+			log.Error(err, "failed ensuring user-owned schema",
+				"schema", user.Schema, "user", user.Username, "query", stmt)
+			return err
+		}
+	}
 	return nil
 }
 
@@ -826,7 +880,8 @@ func (p Postgres) revokePermissions(ctx context.Context, admin *DatabaseUser, us
 		}
 
 		for _, schema := range schemas {
-			revokeDefaults := fmt.Sprintf("ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" REVOKE ALL ON TABLES FROM \"%s\";",
+			revokeDefaults := fmt.Sprintf(
+				"ALTER DEFAULT PRIVILEGES FOR ROLE \"%s\" IN SCHEMA \"%s\" REVOKE ALL ON TABLES FROM \"%s\";",
 				p.MainUser.Username,
 				schema,
 				user.Username,

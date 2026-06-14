@@ -248,6 +248,24 @@ spec:
                         changes it's now set to true. It should be changed in
                         in the next API version
                 type: boolean
+              schema:
+                description: |-
+                  Schema, when set (Postgres only), makes the operator provision a schema
+                  of this name OWNED BY this user (CREATE SCHEMA ... AUTHORIZATION, with an
+                  idempotent ALTER SCHEMA OWNER to converge drift) and set the user's
+                  per-database search_path to it. This lets a per-app consumer of a shared
+                  database own its own namespace declaratively, instead of relying on
+                  bootstrap DDL inside migration Jobs. The operator admin must be able to
+                  assign ownership to the user (superuser or a member of the role).
+                  Has no effect on other engines.
+                type: string
+              searchPath:
+                description: |-
+                  SearchPath overrides the role search_path applied when Schema is set.
+                  Defaults to [<Schema>, public]. Postgres only; ignored when Schema is empty.
+                items:
+                  type: string
+                type: array
               secretName:
                 description: SecretName name that should be used to save user's credentials
                 type: string

@@ -59,6 +59,20 @@ type DbUserSpec struct {
 	// Has no effect on other engines.
 	// +optional
 	Clickhouse *ClickhouseUser `json:"clickhouse,omitempty"`
+	// Schema, when set (Postgres only), makes the operator provision a schema
+	// of this name OWNED BY this user (CREATE SCHEMA ... AUTHORIZATION, with an
+	// idempotent ALTER SCHEMA OWNER to converge drift) and set the user's
+	// per-database search_path to it. This lets a per-app consumer of a shared
+	// database own its own namespace declaratively, instead of relying on
+	// bootstrap DDL inside migration Jobs. The operator admin must be able to
+	// assign ownership to the user (superuser or a member of the role).
+	// Has no effect on other engines.
+	// +optional
+	Schema string `json:"schema,omitempty"`
+	// SearchPath overrides the role search_path applied when Schema is set.
+	// Defaults to [<Schema>, public]. Postgres only; ignored when Schema is empty.
+	// +optional
+	SearchPath []string `json:"searchPath,omitempty"`
 }
 
 // ClickhouseUser holds ClickHouse-specific RBAC settings applied to a DbUser.
@@ -159,7 +173,8 @@ func IsAccessTypeSupported(wantedAccessType string) error {
 	if slices.Contains(supportedAccessTypes, wantedAccessType) {
 		return nil
 	}
-	return fmt.Errorf("the provided access type is not supported by the operator: %s - please choose one of these: %v",
+	return fmt.Errorf(
+		"the provided access type is not supported by the operator: %s - please choose one of these: %v",
 		wantedAccessType,
 		supportedAccessTypes,
 	)
