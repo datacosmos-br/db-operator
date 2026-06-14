@@ -911,8 +911,10 @@ func (p Postgres) deleteUser(ctx context.Context, admin *DatabaseUser, user *Dat
 	if p.isUserExist(ctx, admin, user) {
 		err := p.executeExec(ctx, "postgres", delete, admin)
 		if err != nil {
-			pqErr := err.(*pq.Error)
-			if pqErr.Code == "2BP01" {
+			// A non-pq error (e.g. context.DeadlineExceeded from the query
+			// timeout, or a connection error) must propagate, not panic on a
+			// blind type assertion. Mirror the safe pattern in deleteDatabase.
+			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "2BP01" {
 				// 2BP01 dependent_objects_still_exist
 				log.Error(err, "dependent objects still exist")
 				return nil
