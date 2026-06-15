@@ -343,6 +343,15 @@ func (r *DatabaseReconciler) handleDbCreateOrUpdate(ctx context.Context, dbcr *k
 		}
 	}
 
+	// Ensure the operator-generated native engine keys are present in the
+	// existing secret. When the secret was previously managed by credential
+	// templates that removed those keys (e.g. chart migration dropping
+	// POSTGRES_* templates), the operator must converge them back from the
+	// canonical aliases or generated values before downstream parsing.
+	if err := r.ensureDatabaseSecretNativeKeys(ctx, dbcr, dbSecret); err != nil {
+		return r.manageError(ctx, dbcr, err, true, phase)
+	}
+
 	// Apply extra metadata from the Database credentials spec to the
 	// credentials Secret before it is created or updated in the cluster.
 	// This ensures that changes to .spec.credentials.metadata are
@@ -1126,4 +1135,95 @@ func (r *DatabaseReconciler) createSecret(ctx context.Context, dbcr *kindav1beta
 
 	databaseSecret := kci.SecretBuilder(dbcr.Spec.SecretName, dbcr.Namespace, secretData)
 	return databaseSecret, nil
+}
+
+// ensureDatabaseSecretNativeKeys converges the engine-native secret keys that
+// the db-operator itself consumes (POSTGRES_*, DB/USER/PASSWORD, CLICKHOUSE_*).
+// This is required when an existing secret lost those keys, for example after a
+// chart migration removed credential templates that previously supplied them and
+// the template renderer cleaned them up as obsolete. The function preserves
+// existing values when they are present, derives missing user/password from the
+// canonical cross-engine aliases (username/password), and only generates a new
+// password as a last resort.
+func (r *DatabaseReconciler) ensureDatabaseSecretNativeKeys(ctx context.Context, dbcr *kindav1beta1.Database, secret *corev1.Secret) error {
+	if secret.Data == nil {
+		secret.Data = map[string][]byte{}
+	}
+
+	// No native keys to converge when the database/engine hasn't been determined yet.
+	engine := dbcr.Status.Engine
+	if engine == "" {
+		return nil
+	}
+
+	switch engine {
+	case consts.ENGINE_POSTGRES:
+		if _, ok := secret.Data[consts.POSTGRES_DB]; !ok {
+			secret.Data[consts.POSTGRES_DB] = []byte(dbcr.Spec.DatabaseName)
+		}
+		if _, ok := secret.Data[consts.POSTGRES_USER]; !ok {
+			if user, ok := secret.Data["username"]; ok && len(user) > 0 {
+				secret.Data[consts.POSTGRES_USER] = user
+			} else {
+				secret.Data[consts.POSTGRES_USER] = []byte(dbcr.Namespace + "-" + dbcr.Name)
+			}
+		}
+		if _, ok := secret.Data[consts.POSTGRES_PASSWORD]; !ok {
+			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 {
+				secret.Data[consts.POSTGRES_PASSWORD] = pass
+			} else {
+				generated, err := kci.GeneratePass()
+				if err != nil {
+					return err
+				}
+				secret.Data[consts.POSTGRES_PASSWORD] = []byte(generated)
+			}
+		}
+	case consts.ENGINE_MYSQL:
+		if _, ok := secret.Data[consts.MYSQL_DB]; !ok {
+			secret.Data[consts.MYSQL_DB] = []byte(dbcr.Spec.DatabaseName)
+		}
+		if _, ok := secret.Data[consts.MYSQL_USER]; !ok {
+			if user, ok := secret.Data["username"]; ok && len(user) > 0 {
+				secret.Data[consts.MYSQL_USER] = user
+			} else {
+				secret.Data[consts.MYSQL_USER] = []byte(dbcr.Namespace + "-" + dbcr.Name)
+			}
+		}
+		if _, ok := secret.Data[consts.MYSQL_PASSWORD]; !ok {
+			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 {
+				secret.Data[consts.MYSQL_PASSWORD] = pass
+			} else {
+				generated, err := kci.GeneratePass()
+				if err != nil {
+					return err
+				}
+				secret.Data[consts.MYSQL_PASSWORD] = []byte(generated)
+			}
+		}
+	case consts.ENGINE_CLICKHOUSE:
+		if _, ok := secret.Data[consts.CLICKHOUSE_DB]; !ok {
+			secret.Data[consts.CLICKHOUSE_DB] = []byte(dbcr.Spec.DatabaseName)
+		}
+		if _, ok := secret.Data[consts.CLICKHOUSE_USER]; !ok {
+			if user, ok := secret.Data["username"]; ok && len(user) > 0 {
+				secret.Data[consts.CLICKHOUSE_USER] = user
+			} else {
+				secret.Data[consts.CLICKHOUSE_USER] = []byte(dbcr.Namespace + "-" + dbcr.Name)
+			}
+		}
+		if _, ok := secret.Data[consts.CLICKHOUSE_PASSWORD]; !ok {
+			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 {
+				secret.Data[consts.CLICKHOUSE_PASSWORD] = pass
+			} else {
+				generated, err := kci.GeneratePass()
+				if err != nil {
+					return err
+				}
+				secret.Data[consts.CLICKHOUSE_PASSWORD] = []byte(generated)
+			}
+		}
+	}
+
+	return nil
 }
