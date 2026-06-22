@@ -275,6 +275,12 @@ func TestUnitClickhouseGrantPrivileges(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestUnitClickhouseIdentifierQuoting(t *testing.T) {
+	assert.Equal(t, "dbo_quota_cosmos-alianca-otel-writer", chQuotaName("cosmos-alianca-otel-writer"))
+	assert.Equal(t, "`dbo_quota_cosmos-alianca-otel-writer`", chIdentifier(chQuotaName("cosmos-alianca-otel-writer")))
+	assert.Equal(t, "`dbo_profile_bad``name`", chIdentifier(chProfileName("bad`name")))
+}
+
 func TestClickhouseAccessTypes(t *testing.T) {
 	ch, _ := testClickhouse()
 	ch.Database = "ch_access_db"
