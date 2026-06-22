@@ -523,13 +523,29 @@ func (r *DbUserReconciler) getAdminSecret(ctx context.Context, dbcr *kindav1beta
 // creating and removing
 // It's mostly a copy-paste from the database controller, maybe it might be refactored
 func (r *DbUserReconciler) handleTemplatedCredentials(ctx context.Context, dbcr *kindav1beta1.Database, dbusercr *kindav1beta1.DbUser, dbuser *database.DatabaseUser) error {
+	// During deletion this function only strips templated entries from the owned
+	// Secret/ConfigMap. If a source dependency (the dbuser Secret, the database
+	// ConfigMap or the DbInstance) was already pruned, there is nothing left to
+	// clean up — treat the NotFound as success so the "dbuser." finalizer can be
+	// removed instead of deadlocking the teardown. Real errors (and any error
+	// outside deletion) still propagate.
+	deletedAndGone := func(err error) bool {
+		return dbusercr.IsDeleted() && k8serrors.IsNotFound(err)
+	}
+
 	databaseSecret, err := r.getDbUserSecret(ctx, dbusercr)
 	if err != nil {
+		if deletedAndGone(err) {
+			return nil
+		}
 		return err
 	}
 
 	databaseConfigMap, err := r.getDatabaseConfigMap(ctx, dbcr)
 	if err != nil {
+		if deletedAndGone(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -541,6 +557,9 @@ func (r *DbUserReconciler) handleTemplatedCredentials(ctx context.Context, dbcr 
 	// We don't need dbuser here, because if it's not nil, templates will be built for the dbuser, not the database
 	instance := &kindav1beta1.DbInstance{}
 	if err := r.Get(ctx, types.NamespacedName{Name: dbcr.Spec.Instance}, instance); err != nil {
+		if deletedAndGone(err) {
+			return nil
+		}
 		return err
 	}
 
