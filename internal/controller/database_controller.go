@@ -893,13 +893,28 @@ func (r *DatabaseReconciler) handleProxy(ctx context.Context, dbcr *kindav1beta1
 // secrets and configmaps, so it's a generic function that can be used for both:
 // creating and removing
 func (r *DatabaseReconciler) handleTemplatedCredentials(ctx context.Context, dbcr *kindav1beta1.Database) error {
+	// During deletion this function only strips templated entries from the owned
+	// Secret/ConfigMap. If a source dependency (the database Secret/ConfigMap or the
+	// DbInstance) was already pruned, there is nothing left to clean up — treat the
+	// NotFound as success so the "db." finalizer can be removed instead of deadlocking
+	// the teardown. Real errors (and any error outside deletion) still propagate.
+	deletedAndGone := func(err error) bool {
+		return dbcr.IsDeleted() && k8serrors.IsNotFound(err)
+	}
+
 	databaseSecret, err := r.getDatabaseSecret(ctx, dbcr)
 	if err != nil {
+		if deletedAndGone(err) {
+			return nil
+		}
 		return err
 	}
 
 	databaseConfigMap, err := r.getDatabaseConfigMap(ctx, dbcr)
 	if err != nil {
+		if deletedAndGone(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -911,6 +926,9 @@ func (r *DatabaseReconciler) handleTemplatedCredentials(ctx context.Context, dbc
 	// We don't need dbuser here, because if it's not nil, templates will be built for the dbuser, not the database
 	instance := &kindav1beta1.DbInstance{}
 	if err := r.Get(ctx, types.NamespacedName{Name: dbcr.Spec.Instance}, instance); err != nil {
+		if deletedAndGone(err) {
+			return nil
+		}
 		return err
 	}
 
