@@ -594,16 +594,15 @@ func (p Postgres) createOrUpdateUser(ctx context.Context, admin *DatabaseUser, u
 
 func (p Postgres) createUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	create := fmt.Sprintf("CREATE USER \"%s\" WITH ENCRYPTED PASSWORD '%s' NOSUPERUSER;", user.Username, user.Password)
 
-	if !p.isUserExist(ctx, admin, user) {
-		err := p.executeExec(ctx, "postgres", create, admin)
-		if err != nil {
-			log.Error(err, "failed creating postgres user")
-			return err
-		}
-	} else {
-		err := fmt.Errorf("user already exists: %s", user.Username)
+	if p.isUserExist(ctx, admin, user) {
+		log.Info("postgres user already exists, updating", "user", user.Username)
+		return p.updateUser(ctx, admin, user)
+	}
+
+	create := fmt.Sprintf("CREATE USER \"%s\" WITH ENCRYPTED PASSWORD '%s' NOSUPERUSER;", user.Username, user.Password)
+	if err := p.executeExec(ctx, "postgres", create, admin); err != nil {
+		log.Error(err, "failed creating postgres user")
 		return err
 	}
 

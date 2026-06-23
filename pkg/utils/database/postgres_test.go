@@ -290,9 +290,9 @@ func TestPostgresReadOnlyUserLifecycleNoAdminGrant(t *testing.T) {
 	err := p.createUser(context.TODO(), admin, readonlyUser)
 	assert.NoErrorf(t, err, "Unexpected error %v", err)
 
-	// Test that it can't be created again
+	// Test that creating again is idempotent (updates existing user)
 	err = p.createUser(context.TODO(), admin, readonlyUser)
-	assert.Error(t, err, "Was expecting an error")
+	assert.NoError(t, err, "Was not expecting an error on idempotent create")
 
 	// Test that it can be updated
 	err = p.updateUser(context.TODO(), admin, readonlyUser)
@@ -388,9 +388,9 @@ func TestPostgresReadWriteUserLifecycleNoAdminGrant(t *testing.T) {
 	err := p.createUser(context.TODO(), admin, readwriteUser)
 	assert.NoErrorf(t, err, "Unexpected error %v", err)
 
-	// Test that it can't be created again
+	// Test that creating again is idempotent (updates existing user)
 	err = p.createUser(context.TODO(), admin, readwriteUser)
-	assert.Error(t, err, "Was expecting an error")
+	assert.NoError(t, err, "Was not expecting an error on idempotent create")
 
 	// Test that it can be updated
 	err = p.updateUser(context.TODO(), admin, readwriteUser)
@@ -490,9 +490,9 @@ func TestPostgresReadOnlyUserLifecycleAdminGrant(t *testing.T) {
 	err := p.createUser(context.TODO(), admin, readonlyUser)
 	assert.NoErrorf(t, err, "Unexpected error %v", err)
 
-	// Test that it can't be created again
+	// Test that creating again is idempotent (updates existing user)
 	err = p.createUser(context.TODO(), admin, readonlyUser)
-	assert.Error(t, err, "Was expecting an error")
+	assert.NoError(t, err, "Was not expecting an error on idempotent create")
 
 	// Test that it can be updated
 	err = p.updateUser(context.TODO(), admin, readonlyUser)
@@ -583,9 +583,9 @@ func TestPostgresReadWriteUserLifecycleAdminGrant(t *testing.T) {
 	err := p.createUser(context.TODO(), admin, readwriteUser)
 	assert.NoErrorf(t, err, "Unexpected error %v", err)
 
-	// Test that it can't be created again
+	// Test that creating again is idempotent (updates existing user)
 	err = p.createUser(context.TODO(), admin, readwriteUser)
-	assert.Error(t, err, "Was expecting an error")
+	assert.NoError(t, err, "Was not expecting an error on idempotent create")
 
 	// Test that it can be updated
 	err = p.updateUser(context.TODO(), admin, readwriteUser)
