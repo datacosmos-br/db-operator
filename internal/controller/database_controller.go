@@ -353,6 +353,24 @@ func (r *DatabaseReconciler) handleDbCreateOrUpdate(ctx context.Context, dbcr *k
 		return r.manageError(ctx, dbcr, err, true, phase)
 	}
 
+	// For postgres, add the canonical libpq-style connection keys
+	// (POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SSLMODE, POSTGRES_DSN,
+	// DATABASE_URL) when they are missing. This makes the operator-generated
+	// secret self-describing and removes the need for chart credential templates
+	// to re-derive connection information.
+	if dbcr.Status.Engine == consts.ENGINE_POSTGRES && dbcr.Spec.Instance != "" {
+		instance := &kindav1beta1.DbInstance{}
+		if err := r.Get(ctx, types.NamespacedName{Name: dbcr.Spec.Instance}, instance); err == nil {
+			sslmode, sslErr := dbhelper.GetSSLMode(dbcr, instance)
+			if sslErr == nil {
+				host := instance.Status.Info["DB_CONN"]
+				if port, portErr := strconv.ParseUint(instance.Status.Info["DB_PORT"], 10, 16); portErr == nil {
+					dbhelper.AppendPostgresConnectionKeys(dbSecret.Data, host, int32(port), sslmode)
+				}
+			}
+		}
+	}
+
 	// Apply extra metadata from the Database credentials spec to the
 	// credentials Secret before it is created or updated in the cluster.
 	// This ensures that changes to .spec.credentials.metadata are

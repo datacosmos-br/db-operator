@@ -401,3 +401,35 @@ func TestUnitGetSSLModeMysql(t *testing.T) {
 	}
 	assert.Equal(t, "verify_ca", mode)
 }
+
+func TestUnitAppendPostgresConnectionKeys(t *testing.T) {
+	secretData := map[string][]byte{
+		consts.POSTGRES_DB:       []byte("testdb"),
+		consts.POSTGRES_USER:     []byte("testuser"),
+		consts.POSTGRES_PASSWORD: []byte("testpass"),
+	}
+
+	dbhelper.AppendPostgresConnectionKeys(secretData, "cosmos-db.postgresql.svc", 5432, "require")
+
+	assert.Equal(t, "cosmos-db.postgresql.svc", string(secretData[consts.POSTGRES_HOST]))
+	assert.Equal(t, "5432", string(secretData[consts.POSTGRES_PORT]))
+	assert.Equal(t, "require", string(secretData[consts.POSTGRES_SSLMODE]))
+	expectedDSN := "postgresql://testuser:testpass@cosmos-db.postgresql.svc:5432/testdb?sslmode=require"
+	assert.Equal(t, expectedDSN, string(secretData[consts.POSTGRES_DSN]))
+	assert.Equal(t, expectedDSN, string(secretData[consts.DATABASE_URL]))
+}
+
+func TestUnitAppendPostgresConnectionKeysPreservesExisting(t *testing.T) {
+	secretData := map[string][]byte{
+		consts.POSTGRES_DB:       []byte("testdb"),
+		consts.POSTGRES_USER:     []byte("testuser"),
+		consts.POSTGRES_PASSWORD: []byte("testpass"),
+		consts.POSTGRES_HOST:     []byte("existing-host"),
+		consts.POSTGRES_DSN:      []byte("existing-dsn"),
+	}
+
+	dbhelper.AppendPostgresConnectionKeys(secretData, "cosmos-db.postgresql.svc", 5432, "require")
+
+	assert.Equal(t, "existing-host", string(secretData[consts.POSTGRES_HOST]))
+	assert.Equal(t, "existing-dsn", string(secretData[consts.POSTGRES_DSN]))
+}

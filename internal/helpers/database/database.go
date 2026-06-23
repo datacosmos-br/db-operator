@@ -324,3 +324,45 @@ func GetGenericSSLMode(dbcr *kindav1beta1.Database, instance *kindav1beta1.DbIns
 		}
 	}
 }
+
+// AppendPostgresConnectionKeys adds the canonical libpq-style connection keys to
+// a postgres-generated secret when they are missing. It is additive and
+// non-destructive: existing values (for example supplied by credential templates)
+// are preserved. The function returns the same map to allow chaining.
+func AppendPostgresConnectionKeys(secretData map[string][]byte, host string, port int32, sslmode string) map[string][]byte {
+	if secretData == nil {
+		return secretData
+	}
+	if host == "" || port == 0 || sslmode == "" {
+		return secretData
+	}
+
+	db := string(secretData[consts.POSTGRES_DB])
+	user := string(secretData[consts.POSTGRES_USER])
+	pass := string(secretData[consts.POSTGRES_PASSWORD])
+
+	if _, ok := secretData[consts.POSTGRES_HOST]; !ok {
+		secretData[consts.POSTGRES_HOST] = []byte(host)
+	}
+	if _, ok := secretData[consts.POSTGRES_PORT]; !ok {
+		secretData[consts.POSTGRES_PORT] = []byte(strconv.Itoa(int(port)))
+	}
+	if _, ok := secretData[consts.POSTGRES_SSLMODE]; !ok {
+		secretData[consts.POSTGRES_SSLMODE] = []byte(sslmode)
+	}
+
+	// Build libpq-style connection URLs only when the credential base keys are
+	// present. Passwords are generated alphanumerically by the operator, so a
+	// simple format is sufficient and matches the chart-side DSN templates.
+	if db != "" && user != "" {
+		conn := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=%s", user, pass, host, port, db, sslmode)
+		if _, ok := secretData[consts.POSTGRES_DSN]; !ok {
+			secretData[consts.POSTGRES_DSN] = []byte(conn)
+		}
+		if _, ok := secretData[consts.DATABASE_URL]; !ok {
+			secretData[consts.DATABASE_URL] = []byte(conn)
+		}
+	}
+
+	return secretData
+}
