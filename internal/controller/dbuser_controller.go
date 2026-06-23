@@ -175,6 +175,22 @@ func (r *DbUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		userSecret.Data[consts.CLICKHOUSE_USER] = []byte(dbusercr.Spec.Clickhouse.UserName)
 	}
 
+	// For postgres DbUsers, add the canonical libpq-style connection keys when
+	// they are missing. This keeps DbUser secrets self-describing and aligned
+	// with Database secrets.
+	if dbcr.Status.Engine == consts.ENGINE_POSTGRES && dbcr.Spec.Instance != "" {
+		instance := &kindav1beta1.DbInstance{}
+		if err := r.Get(ctx, types.NamespacedName{Name: dbcr.Spec.Instance}, instance); err == nil {
+			sslmode, sslErr := dbhelper.GetSSLMode(dbcr, instance)
+			if sslErr == nil {
+				host := instance.Status.Info["DB_CONN"]
+				if port, portErr := strconv.ParseUint(instance.Status.Info["DB_PORT"], 10, 16); portErr == nil {
+					dbhelper.AppendPostgresConnectionKeys(userSecret.Data, host, int32(port), sslmode)
+				}
+			}
+		}
+	}
+
 	// Make sure the secret is reflecting the actual desired state
 	err = r.kubeHelper.HandleCreateOrUpdate(ctx, userSecret)
 	if err != nil {
