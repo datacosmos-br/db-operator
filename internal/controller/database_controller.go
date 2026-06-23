@@ -18,6 +18,7 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"maps"
@@ -1155,6 +1156,14 @@ func (r *DatabaseReconciler) createSecret(ctx context.Context, dbcr *kindav1beta
 	return databaseSecret, nil
 }
 
+// isTemplatedValue reports whether a secret value is still an unrendered Go
+// template placeholder (e.g. "{{ .Username }}"). The operator must not copy
+// such values into engine-native keys, otherwise the parsing/templating loop
+// will feed template syntax back into itself and deadlock the credentials.
+func isTemplatedValue(v []byte) bool {
+	return bytes.Contains(v, []byte("{{")) || bytes.Contains(v, []byte("}}"))
+}
+
 // ensureDatabaseSecretNativeKeys converges the engine-native secret keys that
 // the db-operator itself consumes (POSTGRES_*, DB/USER/PASSWORD, CLICKHOUSE_*).
 // This is required when an existing secret lost those keys, for example after a
@@ -1180,14 +1189,14 @@ func (r *DatabaseReconciler) ensureDatabaseSecretNativeKeys(ctx context.Context,
 			secret.Data[consts.POSTGRES_DB] = []byte(dbcr.Spec.DatabaseName)
 		}
 		if _, ok := secret.Data[consts.POSTGRES_USER]; !ok {
-			if user, ok := secret.Data["username"]; ok && len(user) > 0 {
+			if user, ok := secret.Data["username"]; ok && len(user) > 0 && !isTemplatedValue(user) {
 				secret.Data[consts.POSTGRES_USER] = user
 			} else {
 				secret.Data[consts.POSTGRES_USER] = []byte(dbcr.Namespace + "-" + dbcr.Name)
 			}
 		}
 		if _, ok := secret.Data[consts.POSTGRES_PASSWORD]; !ok {
-			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 {
+			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 && !isTemplatedValue(pass) {
 				secret.Data[consts.POSTGRES_PASSWORD] = pass
 			} else {
 				generated, err := kci.GeneratePass()
@@ -1202,14 +1211,14 @@ func (r *DatabaseReconciler) ensureDatabaseSecretNativeKeys(ctx context.Context,
 			secret.Data[consts.MYSQL_DB] = []byte(dbcr.Spec.DatabaseName)
 		}
 		if _, ok := secret.Data[consts.MYSQL_USER]; !ok {
-			if user, ok := secret.Data["username"]; ok && len(user) > 0 {
+			if user, ok := secret.Data["username"]; ok && len(user) > 0 && !isTemplatedValue(user) {
 				secret.Data[consts.MYSQL_USER] = user
 			} else {
 				secret.Data[consts.MYSQL_USER] = []byte(dbcr.Namespace + "-" + dbcr.Name)
 			}
 		}
 		if _, ok := secret.Data[consts.MYSQL_PASSWORD]; !ok {
-			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 {
+			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 && !isTemplatedValue(pass) {
 				secret.Data[consts.MYSQL_PASSWORD] = pass
 			} else {
 				generated, err := kci.GeneratePass()
@@ -1224,14 +1233,14 @@ func (r *DatabaseReconciler) ensureDatabaseSecretNativeKeys(ctx context.Context,
 			secret.Data[consts.CLICKHOUSE_DB] = []byte(dbcr.Spec.DatabaseName)
 		}
 		if _, ok := secret.Data[consts.CLICKHOUSE_USER]; !ok {
-			if user, ok := secret.Data["username"]; ok && len(user) > 0 {
+			if user, ok := secret.Data["username"]; ok && len(user) > 0 && !isTemplatedValue(user) {
 				secret.Data[consts.CLICKHOUSE_USER] = user
 			} else {
 				secret.Data[consts.CLICKHOUSE_USER] = []byte(dbcr.Namespace + "-" + dbcr.Name)
 			}
 		}
 		if _, ok := secret.Data[consts.CLICKHOUSE_PASSWORD]; !ok {
-			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 {
+			if pass, ok := secret.Data["password"]; ok && len(pass) > 0 && !isTemplatedValue(pass) {
 				secret.Data[consts.CLICKHOUSE_PASSWORD] = pass
 			} else {
 				generated, err := kci.GeneratePass()
