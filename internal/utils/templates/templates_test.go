@@ -480,7 +480,7 @@ func TestUnitPortGetterProxy(t *testing.T) {
 func TestUnitRenderErrDupSecret(t *testing.T) {
 	databaseNew := databaseK8s.DeepCopy()
 	databaseNew.Status.Engine = consts.ENGINE_POSTGRES
-	templateds, err := templates.NewTemplateDataSource(databaseNew, nil, secretPostgres, configmapK8s, db, database.NewDummyUser("mainUser"), nil)
+	templateds, err := templates.NewTemplateDataSource(databaseNew, nil, secretPostgres.DeepCopy(), configmapK8s.DeepCopy(), db, database.NewDummyUser("mainUser"), nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -492,6 +492,64 @@ func TestUnitRenderErrDupSecret(t *testing.T) {
 		},
 	})
 	assert.ErrorContains(t, err, "POSTGRES_PASSWORD already exists in the secret")
+}
+
+func TestUnitRenderErrDupNativeCredentialSecretSameValue(t *testing.T) {
+	databaseNew := databaseK8s.DeepCopy()
+	databaseNew.Status.Engine = consts.ENGINE_POSTGRES
+	templateds, err := templates.NewTemplateDataSource(databaseNew, nil, secretPostgres.DeepCopy(), configmapK8s.DeepCopy(), db, database.NewDummyUser("mainUser"), nil)
+	if err != nil {
+		t.Error(err)
+	}
+	err = templateds.Render(v1beta1.Templates{
+		&v1beta1.Template{
+			Name:     "POSTGRES_PASSWORD",
+			Template: "{{ .Secret \"POSTGRES_PASSWORD\" }}",
+			Secret:   true,
+		},
+	})
+	assert.ErrorContains(t, err, "POSTGRES_PASSWORD already exists in the secret")
+	assert.Empty(t, templateds.SecretK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY])
+}
+
+func TestUnitRenderAdoptsPostgresConnectionSecret(t *testing.T) {
+	secretNew := secretPostgres.DeepCopy()
+	secretNew.Data["POSTGRES_SSLMODE"] = []byte("verify-ca")
+	databaseNew := databaseK8s.DeepCopy()
+	databaseNew.Status.Engine = consts.ENGINE_POSTGRES
+	templateds, err := templates.NewTemplateDataSource(databaseNew, nil, secretNew, configmapK8s.DeepCopy(), db, database.NewDummyUser("mainUser"), nil)
+	if err != nil {
+		t.Error(err)
+	}
+	err = templateds.Render(v1beta1.Templates{
+		&v1beta1.Template{
+			Name:     "POSTGRES_SSLMODE",
+			Template: "require",
+			Secret:   true,
+		},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("require"), templateds.SecretK8sObj.Data["POSTGRES_SSLMODE"])
+	assert.Equal(t, "POSTGRES_SSLMODE", templateds.SecretK8sObj.ObjectMeta.Annotations[consts.TEMPLATE_ANNOTATION_KEY])
+}
+
+func TestUnitRenderErrDupPostgresConnectionSecretForMysql(t *testing.T) {
+	secretNew := secretMysql.DeepCopy()
+	secretNew.Data["POSTGRES_SSLMODE"] = []byte("verify-ca")
+	databaseNew := databaseK8s.DeepCopy()
+	databaseNew.Status.Engine = consts.ENGINE_MYSQL
+	templateds, err := templates.NewTemplateDataSource(databaseNew, nil, secretNew, configmapK8s.DeepCopy(), db, database.NewDummyUser("mainUser"), nil)
+	if err != nil {
+		t.Error(err)
+	}
+	err = templateds.Render(v1beta1.Templates{
+		&v1beta1.Template{
+			Name:     "POSTGRES_SSLMODE",
+			Template: "require",
+			Secret:   true,
+		},
+	})
+	assert.ErrorContains(t, err, "POSTGRES_SSLMODE already exists in the secret")
 }
 
 func TestUnitRenderHTML(t *testing.T) {
