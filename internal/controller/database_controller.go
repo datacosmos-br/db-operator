@@ -1197,6 +1197,17 @@ func isTemplatedValue(v []byte) bool {
 	return bytes.Contains(v, []byte("{{")) || bytes.Contains(v, []byte("}}"))
 }
 
+// nativeDatabaseName resolves the database identifier for the engine-native
+// DB key: the immutable spec override, else the name already recorded in
+// status, else the documented "<namespace>-<name>" default. It is never empty.
+func nativeDatabaseName(dbcr *kindav1beta1.Database) []byte {
+	name := dbcr.Spec.DatabaseName
+	if len(name) == 0 {
+		name = dbcr.Status.DatabaseName
+	}
+	return []byte(dbhelper.DatabaseName(dbcr.ObjectMeta, name))
+}
+
 // ensureDatabaseSecretNativeKeys converges the engine-native secret keys that
 // the db-operator itself consumes (POSTGRES_*, DB/USER/PASSWORD, CLICKHOUSE_*).
 // This is required when an existing secret lost those keys, for example after a
@@ -1218,8 +1229,8 @@ func (r *DatabaseReconciler) ensureDatabaseSecretNativeKeys(ctx context.Context,
 
 	switch engine {
 	case consts.ENGINE_POSTGRES:
-		if _, ok := secret.Data[consts.POSTGRES_DB]; !ok {
-			secret.Data[consts.POSTGRES_DB] = []byte(dbcr.Spec.DatabaseName)
+		if len(secret.Data[consts.POSTGRES_DB]) == 0 {
+			secret.Data[consts.POSTGRES_DB] = nativeDatabaseName(dbcr)
 		}
 		if _, ok := secret.Data[consts.POSTGRES_USER]; !ok {
 			if user, ok := secret.Data["username"]; ok && len(user) > 0 && !isTemplatedValue(user) {
@@ -1240,8 +1251,8 @@ func (r *DatabaseReconciler) ensureDatabaseSecretNativeKeys(ctx context.Context,
 			}
 		}
 	case consts.ENGINE_MYSQL:
-		if _, ok := secret.Data[consts.MYSQL_DB]; !ok {
-			secret.Data[consts.MYSQL_DB] = []byte(dbcr.Spec.DatabaseName)
+		if len(secret.Data[consts.MYSQL_DB]) == 0 {
+			secret.Data[consts.MYSQL_DB] = nativeDatabaseName(dbcr)
 		}
 		if _, ok := secret.Data[consts.MYSQL_USER]; !ok {
 			if user, ok := secret.Data["username"]; ok && len(user) > 0 && !isTemplatedValue(user) {
@@ -1262,8 +1273,8 @@ func (r *DatabaseReconciler) ensureDatabaseSecretNativeKeys(ctx context.Context,
 			}
 		}
 	case consts.ENGINE_CLICKHOUSE:
-		if _, ok := secret.Data[consts.CLICKHOUSE_DB]; !ok {
-			secret.Data[consts.CLICKHOUSE_DB] = []byte(dbcr.Spec.DatabaseName)
+		if len(secret.Data[consts.CLICKHOUSE_DB]) == 0 {
+			secret.Data[consts.CLICKHOUSE_DB] = nativeDatabaseName(dbcr)
 		}
 		if _, ok := secret.Data[consts.CLICKHOUSE_USER]; !ok {
 			if user, ok := secret.Data["username"]; ok && len(user) > 0 && !isTemplatedValue(user) {

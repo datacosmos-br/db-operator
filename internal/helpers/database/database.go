@@ -218,6 +218,15 @@ func ParseDatabaseSecretData(dbcr *kindav1beta1.Database, data map[string][]byte
 	}
 }
 
+// DatabaseName returns dbName, or the "<namespace>-<name>" default documented
+// on Database.spec.databaseName when dbName is empty.
+func DatabaseName(objectMeta metav1.ObjectMeta, dbName string) string {
+	if len(dbName) == 0 {
+		return objectMeta.Namespace + "-" + objectMeta.Name
+	}
+	return dbName
+}
+
 // If dbName is empty, it will be generated, that should be used for database resources.
 // In case this function is called by dbuser controller, dbName should be taken from the
 // `Spec.DatabaseRef` field, so it will ba passed as the last argument
@@ -228,9 +237,7 @@ func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName, ex
 		// https://dev.mysql.com/doc/refman/5.7/en/replication-features-user-names.html
 		mysqlUserLengthLimit = 32
 	)
-	if len(dbName) == 0 {
-		dbName = objectMeta.Namespace + "-" + objectMeta.Name
-	}
+	dbName = DatabaseName(objectMeta, dbName)
 	var dbUser string
 	var dbPassword string
 	if len(existingUser) > 0 {

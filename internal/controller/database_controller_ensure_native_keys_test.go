@@ -107,3 +107,37 @@ func TestEnsureDatabaseSecretNativeKeysPreservesRenderedAliases(t *testing.T) {
 		t.Errorf("POSTGRES_PASSWORD = %q, want %q", secret.Data[consts.POSTGRES_PASSWORD], "app-db-pass")
 	}
 }
+
+func TestEnsureDatabaseSecretNativeKeysNeverWritesEmptyDatabaseName(t *testing.T) {
+	cases := []struct {
+		name       string
+		engine     string
+		key        string
+		statusName string
+		data       map[string][]byte
+		want       string
+	}{
+		{"postgres missing key defaults", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "", map[string][]byte{}, "keycloak-db"},
+		{"postgres empty key heals from status", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "adopted", map[string][]byte{consts.POSTGRES_DB: {}}, "adopted"},
+		{"mysql empty key defaults", consts.ENGINE_MYSQL, consts.MYSQL_DB, "", map[string][]byte{consts.MYSQL_DB: {}}, "keycloak-db"},
+		{"clickhouse empty key defaults", consts.ENGINE_CLICKHOUSE, consts.CLICKHOUSE_DB, "", map[string][]byte{consts.CLICKHOUSE_DB: {}}, "keycloak-db"},
+		{"existing value preserved", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "adopted", map[string][]byte{consts.POSTGRES_DB: []byte("kept")}, "kept"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dbcr := &kindav1beta1.Database{
+				ObjectMeta: metav1.ObjectMeta{Namespace: "keycloak", Name: "db"},
+				Status:     kindav1beta1.DatabaseStatus{Engine: tc.engine, DatabaseName: tc.statusName},
+			}
+			secret := &corev1.Secret{Data: tc.data}
+
+			r := &DatabaseReconciler{}
+			if err := r.ensureDatabaseSecretNativeKeys(nil, dbcr, secret); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := string(secret.Data[tc.key]); got != tc.want {
+				t.Errorf("%s = %q, want %q", tc.key, got, tc.want)
+			}
+		})
+	}
+}
