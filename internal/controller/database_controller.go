@@ -1198,14 +1198,14 @@ func isTemplatedValue(v []byte) bool {
 }
 
 // nativeDatabaseName resolves the database identifier for the engine-native
-// DB key: the immutable spec override, else the name already recorded in
-// status, else the documented "<namespace>-<name>" default. It is never empty.
+// DB key: the name already recorded in status (the database that exists),
+// else the spec override or default normalized as at secret creation. It is
+// never empty.
 func nativeDatabaseName(dbcr *kindav1beta1.Database) []byte {
-	name := dbcr.Spec.DatabaseName
-	if len(name) == 0 {
-		name = dbcr.Status.DatabaseName
+	if len(dbcr.Status.DatabaseName) > 0 {
+		return []byte(dbcr.Status.DatabaseName)
 	}
-	return []byte(dbhelper.DatabaseName(dbcr.ObjectMeta, name))
+	return []byte(dbhelper.DatabaseName(dbcr.ObjectMeta, dbcr.Status.Engine, dbcr.Spec.DatabaseName))
 }
 
 // ensureDatabaseSecretNativeKeys converges the engine-native secret keys that

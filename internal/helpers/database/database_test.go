@@ -39,8 +39,10 @@ var (
 
 func TestUnitDatabaseNameDefault(t *testing.T) {
 	meta := metav1.ObjectMeta{Namespace: "keycloak", Name: "db"}
-	assert.Equal(t, "keycloak-db", dbhelper.DatabaseName(meta, ""))
-	assert.Equal(t, "custom", dbhelper.DatabaseName(meta, "custom"))
+	assert.Equal(t, "keycloak-db", dbhelper.DatabaseName(meta, consts.ENGINE_POSTGRES, ""))
+	assert.Equal(t, "Custom-Name", dbhelper.DatabaseName(meta, consts.ENGINE_POSTGRES, "Custom-Name"))
+	assert.Equal(t, "keycloak_db", dbhelper.DatabaseName(meta, consts.ENGINE_MYSQL, ""))
+	assert.Equal(t, "custom_name", dbhelper.DatabaseName(meta, consts.ENGINE_MYSQL, "Custom-Name"))
 }
 
 func TestUnitDeterminPostgresType(t *testing.T) {

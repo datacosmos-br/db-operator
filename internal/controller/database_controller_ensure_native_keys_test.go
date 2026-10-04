@@ -113,20 +113,25 @@ func TestEnsureDatabaseSecretNativeKeysNeverWritesEmptyDatabaseName(t *testing.T
 		name       string
 		engine     string
 		key        string
+		specName   string
 		statusName string
 		data       map[string][]byte
 		want       string
 	}{
-		{"postgres missing key defaults", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "", map[string][]byte{}, "keycloak-db"},
-		{"postgres empty key heals from status", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "adopted", map[string][]byte{consts.POSTGRES_DB: {}}, "adopted"},
-		{"mysql empty key defaults", consts.ENGINE_MYSQL, consts.MYSQL_DB, "", map[string][]byte{consts.MYSQL_DB: {}}, "keycloak-db"},
-		{"clickhouse empty key defaults", consts.ENGINE_CLICKHOUSE, consts.CLICKHOUSE_DB, "", map[string][]byte{consts.CLICKHOUSE_DB: {}}, "keycloak-db"},
-		{"existing value preserved", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "adopted", map[string][]byte{consts.POSTGRES_DB: []byte("kept")}, "kept"},
+		{"postgres missing key defaults", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "", "", map[string][]byte{}, "keycloak-db"},
+		{"postgres empty key heals from status", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "", "adopted", map[string][]byte{consts.POSTGRES_DB: {}}, "adopted"},
+		{"status wins over spec", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "override", "adopted", map[string][]byte{consts.POSTGRES_DB: {}}, "adopted"},
+		{"spec used before status is recorded", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "override", "", map[string][]byte{consts.POSTGRES_DB: {}}, "override"},
+		{"mysql default normalized", consts.ENGINE_MYSQL, consts.MYSQL_DB, "", "", map[string][]byte{consts.MYSQL_DB: {}}, "keycloak_db"},
+		{"mysql spec normalized", consts.ENGINE_MYSQL, consts.MYSQL_DB, "My-App", "", map[string][]byte{consts.MYSQL_DB: {}}, "my_app"},
+		{"clickhouse empty key defaults", consts.ENGINE_CLICKHOUSE, consts.CLICKHOUSE_DB, "", "", map[string][]byte{consts.CLICKHOUSE_DB: {}}, "keycloak-db"},
+		{"existing value preserved", consts.ENGINE_POSTGRES, consts.POSTGRES_DB, "", "adopted", map[string][]byte{consts.POSTGRES_DB: []byte("kept")}, "kept"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dbcr := &kindav1beta1.Database{
 				ObjectMeta: metav1.ObjectMeta{Namespace: "keycloak", Name: "db"},
+				Spec:       kindav1beta1.DatabaseSpec{DatabaseName: tc.specName},
 				Status:     kindav1beta1.DatabaseStatus{Engine: tc.engine, DatabaseName: tc.statusName},
 			}
 			secret := &corev1.Secret{Data: tc.data}
