@@ -218,19 +218,29 @@ func ParseDatabaseSecretData(dbcr *kindav1beta1.Database, data map[string][]byte
 	}
 }
 
+// https://dev.mysql.com/doc/refman/5.7/en/identifier-length.html
+const mysqlDBNameLengthLimit = 63
+
+// DatabaseName returns the engine database identifier for dbName, using the
+// "<namespace>-<name>" default documented on Database.spec.databaseName when
+// dbName is empty, normalized for MySQL exactly as the created database.
+func DatabaseName(objectMeta metav1.ObjectMeta, engine, dbName string) string {
+	if len(dbName) == 0 {
+		dbName = objectMeta.Namespace + "-" + objectMeta.Name
+	}
+	if engine == consts.ENGINE_MYSQL {
+		return kci.StringSanitize(dbName, mysqlDBNameLengthLimit)
+	}
+	return dbName
+}
+
 // If dbName is empty, it will be generated, that should be used for database resources.
 // In case this function is called by dbuser controller, dbName should be taken from the
 // `Spec.DatabaseRef` field, so it will ba passed as the last argument
 func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName, existingUser string) (map[string][]byte, error) {
-	const (
-		// https://dev.mysql.com/doc/refman/5.7/en/identifier-length.html
-		mysqlDBNameLengthLimit = 63
-		// https://dev.mysql.com/doc/refman/5.7/en/replication-features-user-names.html
-		mysqlUserLengthLimit = 32
-	)
-	if len(dbName) == 0 {
-		dbName = objectMeta.Namespace + "-" + objectMeta.Name
-	}
+	// https://dev.mysql.com/doc/refman/5.7/en/replication-features-user-names.html
+	const mysqlUserLengthLimit = 32
+	dbName = DatabaseName(objectMeta, engine, dbName)
 	var dbUser string
 	var dbPassword string
 	if len(existingUser) > 0 {
@@ -254,7 +264,7 @@ func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName, ex
 		return data, nil
 	case "mysql":
 		data := map[string][]byte{
-			consts.MYSQL_DB:       []byte(kci.StringSanitize(dbName, mysqlDBNameLengthLimit)),
+			consts.MYSQL_DB:       []byte(dbName),
 			consts.MYSQL_USER:     []byte(kci.StringSanitize(dbUser, mysqlUserLengthLimit)),
 			consts.MYSQL_PASSWORD: []byte(dbPassword),
 		}

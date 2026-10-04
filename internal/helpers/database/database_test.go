@@ -29,12 +29,21 @@ import (
 	"github.com/db-operator/db-operator/v2/pkg/utils/templates"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
 	testDbcred = database.Credentials{Name: "testdb", Username: "testuser", Password: "password"}
 	ctx        = context.Background()
 )
+
+func TestUnitDatabaseNameDefault(t *testing.T) {
+	meta := metav1.ObjectMeta{Namespace: "keycloak", Name: "db"}
+	assert.Equal(t, "keycloak-db", dbhelper.DatabaseName(meta, consts.ENGINE_POSTGRES, ""))
+	assert.Equal(t, "Custom-Name", dbhelper.DatabaseName(meta, consts.ENGINE_POSTGRES, "Custom-Name"))
+	assert.Equal(t, "keycloak_db", dbhelper.DatabaseName(meta, consts.ENGINE_MYSQL, ""))
+	assert.Equal(t, "custom_name", dbhelper.DatabaseName(meta, consts.ENGINE_MYSQL, "Custom-Name"))
+}
 
 func TestUnitDeterminPostgresType(t *testing.T) {
 	instance := testutils.NewPostgresTestDbInstanceCr()
