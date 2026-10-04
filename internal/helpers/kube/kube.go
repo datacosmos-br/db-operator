@@ -78,6 +78,12 @@ func (kh *KubeHelper) HandleDelete(ctx context.Context, obj client.Object) error
 		return err
 	}
 	if !kh.IsUsedByCaller(obj) {
+		// Delete path only. A Secret that exists but is not used by this
+		// caller is neither edited nor deleted, so the caller's finalizer
+		// can clear. Create and update still refuse that Secret.
+		if kubeObjectIsSecret(obj) {
+			return nil
+		}
 		return fmt.Errorf(
 			"%s %s is not used by %s %s, editing is not possible",
 			obj.GetObjectKind().GroupVersionKind().Kind,
@@ -153,6 +159,13 @@ func (kh *KubeHelper) Update(ctx context.Context, obj client.Object) error {
 	ownerRef := kh.BuildOwnerReference()
 	obj = kh.SetOwnerReference(obj, ownerRef)
 	return kh.Cli.Update(ctx, obj)
+}
+
+func kubeObjectIsSecret(obj client.Object) bool {
+	if _, ok := obj.(*corev1.Secret); ok {
+		return true
+	}
+	return obj.GetObjectKind().GroupVersionKind().Kind == "Secret"
 }
 
 func (kh *KubeHelper) IsUsedByAny(obj client.Object) bool {

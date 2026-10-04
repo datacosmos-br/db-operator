@@ -29,7 +29,6 @@ import (
 	"github.com/db-operator/db-operator/v2/pkg/consts"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -365,9 +364,12 @@ var _ = Describe("KubeHelpers test", func() {
 			err := kh.Cli.Create(ctx, secretCopy)
 			Expect(err).NotTo(HaveOccurred())
 			err = kh.HandleDelete(ctx, secretCopy)
-			Expect(err).To(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
+			fetched := &corev1.Secret{}
+			Expect(kh.Cli.Get(ctx, types.NamespacedName{Namespace: secretCopy.GetNamespace(), Name: secretName}, fetched)).To(Succeed())
+			Expect(fetched.Labels).To(Equal(usedByLabels))
 		})
-		It("Fail update", func() {
+		It("Foreign secret is left unchanged on delete", func() {
 			secretName := "suite-5-test-3"
 			secretCopy := secret.DeepCopy()
 			secretCopy.SetName(secretName)
@@ -380,13 +382,11 @@ var _ = Describe("KubeHelpers test", func() {
 			kh := kube.NewKubeHelper(k8sClient, rec, database)
 			err := kh.Cli.Create(ctx, secretCopy)
 			Expect(err).NotTo(HaveOccurred())
-			invalidLabels := map[string]string{
-				"INVALULID_LABELS": "!@#$!@#",
-			}
-			maps.Copy(usedByLabels, invalidLabels)
-			secretCopy.SetLabels(usedByLabels)
 			err = kh.HandleDelete(ctx, secretCopy)
-			Expect(err).To(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
+			fetched := &corev1.Secret{}
+			Expect(kh.Cli.Get(ctx, types.NamespacedName{Namespace: secretCopy.GetNamespace(), Name: secretName}, fetched)).To(Succeed())
+			Expect(fetched.Labels).To(Equal(usedByLabels))
 		})
 		It("Cleanup disabled orphans the object (owner ref stripped)", func() {
 			secretName := "suite-5-test-4"
@@ -478,6 +478,27 @@ var _ = Describe("KubeHelpers test", func() {
 			err = kh.Cli.Get(ctx, types.NamespacedName{Namespace: secretCopy.GetNamespace(), Name: secretCopy.GetName()}, secretCopy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(secretCopy.GetLabels()).To(Equal(expectedUsedByLabels))
+		})
+		It("Update refuses a secret used by another caller", func() {
+			secretName := "suite-6-test-3"
+			secretCopy := secret.DeepCopy()
+			secretCopy.SetName(secretName)
+			foreignLabels := map[string]string{
+				consts.USED_BY_KIND_LABEL_KEY: "DbUser",
+				consts.USED_BY_NAME_LABEL_KEY: "someone-else",
+			}
+			secretCopy.SetLabels(foreignLabels)
+			rec := events.NewFakeRecorder(1)
+			kh := kube.NewKubeHelper(k8sClient, rec, database)
+			Expect(kh.Cli.Create(ctx, secretCopy)).To(Succeed())
+
+			fetched := &corev1.Secret{}
+			Expect(kh.Cli.Get(ctx, types.NamespacedName{Namespace: secretCopy.GetNamespace(), Name: secretName}, fetched)).To(Succeed())
+			Expect(kh.ModifyObject(ctx, fetched)).NotTo(Succeed())
+
+			after := &corev1.Secret{}
+			Expect(kh.Cli.Get(ctx, types.NamespacedName{Namespace: secretCopy.GetNamespace(), Name: secretName}, after)).To(Succeed())
+			Expect(after.Labels).To(Equal(foreignLabels))
 		})
 	})
 	Context("Test the value getter", func() {

@@ -83,7 +83,11 @@ func SetPermissions(ctx context.Context, db Database, dbuser *DatabaseUser, admi
 
 func DeleteUser(ctx context.Context, db Database, dbuser *DatabaseUser, admin *DatabaseUser) error {
 	err := db.revokePermissions(ctx, admin, dbuser)
-	if err != nil {
+	// 2BP01 from DROP OWNED BY means other objects still depend on this role.
+	// Continue into deleteUser, which drops those dependents and retries.
+	// RevokePermissions does not: a non-deleting revoke must keep failing
+	// without CASCADE.
+	if err != nil && !postgresDependentObjectsStillExist(err) {
 		return err
 	}
 	err = db.deleteUser(ctx, admin, dbuser)

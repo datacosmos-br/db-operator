@@ -67,6 +67,10 @@ type Postgres struct {
 	// If true, databases with active connections will be
 	// forcefully removed.
 	ForceDelete bool
+	// testExec and testUserExists stand in for the live server in unit tests.
+	// Production leaves both nil.
+	testExec       func(ctx context.Context, database, query string, admin *DatabaseUser) error
+	testUserExists func(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) bool
 }
 
 const postgresDefaultSSLMode = "disable"
@@ -135,6 +139,39 @@ func (p Postgres) executeExec(ctx context.Context, database, query string, admin
 	_, err = db.ExecContext(ctx, query)
 
 	return err
+}
+
+func (p Postgres) exec(ctx context.Context, database, query string, admin *DatabaseUser) error {
+	if p.testExec != nil {
+		return p.testExec(ctx, database, query, admin)
+	}
+	return p.executeExec(ctx, database, query, admin)
+}
+
+func (p Postgres) userExists(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) bool {
+	if p.testUserExists != nil {
+		return p.testUserExists(ctx, admin, user)
+	}
+	return p.isUserExist(ctx, admin, user)
+}
+
+func postgresDropOwnedStatement(username string, cascade bool) string {
+	stmt := fmt.Sprintf("DROP OWNED BY \"%s\"", username)
+	if cascade {
+		stmt += " CASCADE"
+	}
+	return stmt + ";"
+}
+
+// postgresDependentObjectsStillExist reports PostgreSQL 2BP01
+// (dependent_objects_still_exist). DROP OWNED BY without CASCADE and DROP USER
+// both return it when other objects still depend on the role's objects.
+func postgresDependentObjectsStillExist(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "2BP01"
+	}
+	return false
 }
 
 func (p Postgres) execAsUser(ctx context.Context, query string, user *DatabaseUser) error {
@@ -856,7 +893,7 @@ func (p Postgres) ensureUserSchema(ctx context.Context, admin *DatabaseUser, use
 }
 
 func (p Postgres) revokePermissions(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
-	if user.AccessType != ACCESS_TYPE_MAINUSER && p.isUserExist(ctx, admin, user) {
+	if user.AccessType != ACCESS_TYPE_MAINUSER && p.userExists(ctx, admin, user) {
 		log := log.FromContext(ctx)
 		schemas := p.Schemas
 		if !p.DropPublicSchema {
@@ -866,14 +903,14 @@ func (p Postgres) revokePermissions(ctx context.Context, admin *DatabaseUser, us
 		// Remove all extra roles
 		for _, role := range user.ExtraPrivileges {
 			grantRole := fmt.Sprintf("REVOKE \"%s\" from \"%s\"", role, user.Username)
-			if err := p.executeExec(ctx, "postgres", grantRole, admin); err != nil {
+			if err := p.exec(ctx, "postgres", grantRole, admin); err != nil {
 				return err
 			}
 		}
 		if !user.GrantToAdmin && user.GrantToAdminOnDelete {
 			log.Info("Granting user to admin", "user", user.Username)
 			assignRoleToAdmin := fmt.Sprintf("GRANT \"%s\" TO \"%s\";", user.Username, admin.Username)
-			if err := p.executeExec(ctx, p.Database, assignRoleToAdmin, admin); err != nil {
+			if err := p.exec(ctx, p.Database, assignRoleToAdmin, admin); err != nil {
 				log.Error(err, "failed granting user to admin", "username", user.Username, "admin", admin.Username)
 			}
 		}
@@ -885,17 +922,21 @@ func (p Postgres) revokePermissions(ctx context.Context, admin *DatabaseUser, us
 				schema,
 				user.Username,
 			)
-			if err := p.executeExec(ctx, p.Database, revokeDefaults, admin); err != nil {
+			if err := p.exec(ctx, p.Database, revokeDefaults, admin); err != nil {
 				log.Error(err, "failed removing default privileges from schema", "username", user.Username, "schema", schema)
 				return err
 			}
 			revokeAll := fmt.Sprintf("REVOKE ALL ON SCHEMA \"%s\" FROM \"%s\";", schema, user.Username)
-			if err := p.executeExec(ctx, p.Database, revokeAll, admin); err != nil {
+			if err := p.exec(ctx, p.Database, revokeAll, admin); err != nil {
 				log.Error(err, "failed revoking privileges from schema", "username", user.Username, "schema", schema)
 				return err
 			}
-			dropOwned := fmt.Sprintf("DROP OWNED BY \"%s\";", user.Username)
-			if err := p.executeExec(ctx, p.Database, dropOwned, admin); err != nil {
+			// CASCADE is intentionally absent. Permission revoke, including
+			// extra-grant removal on a live database, must refuse when other
+			// objects depend on this role. The delete path resolves that
+			// refusal in deleteUser.
+			dropOwned := postgresDropOwnedStatement(user.Username, false)
+			if err := p.exec(ctx, p.Database, dropOwned, admin); err != nil {
 				log.Error(err, "failed dropping owned", "username", user.Username)
 				return err
 			}
@@ -906,20 +947,23 @@ func (p Postgres) revokePermissions(ctx context.Context, admin *DatabaseUser, us
 
 func (p Postgres) deleteUser(ctx context.Context, admin *DatabaseUser, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
-	delete := fmt.Sprintf("DROP USER \"%s\";", user.Username)
-	if p.isUserExist(ctx, admin, user) {
-		err := p.executeExec(ctx, "postgres", delete, admin)
-		if err != nil {
-			// A non-pq error (e.g. context.DeadlineExceeded from the query
-			// timeout, or a connection error) must propagate, not panic on a
-			// blind type assertion. Mirror the safe pattern in deleteDatabase.
-			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "2BP01" {
-				// 2BP01 dependent_objects_still_exist
-				log.Error(err, "dependent objects still exist")
-				return nil
-			}
-			return err
-		}
+	if !p.userExists(ctx, admin, user) {
+		return nil
 	}
-	return nil
+	dropUser := fmt.Sprintf("DROP USER \"%s\";", user.Username)
+	err := p.exec(ctx, "postgres", dropUser, admin)
+	if err == nil {
+		return nil
+	}
+	// A non-pq error (context deadline, connection failure) must propagate.
+	// 2BP01 means dependents that DROP OWNED BY without CASCADE refused are
+	// still blocking DROP USER. Drop those dependents, then retry once.
+	if !postgresDependentObjectsStillExist(err) {
+		return err
+	}
+	log.Error(err, "dependent objects still exist")
+	if err := p.exec(ctx, p.Database, postgresDropOwnedStatement(user.Username, true), admin); err != nil {
+		return err
+	}
+	return p.exec(ctx, "postgres", dropUser, admin)
 }
