@@ -429,7 +429,6 @@ func (r *DbUserReconciler) manageError(ctx context.Context, dbucr *kindav1beta1.
 	// TODO: implementing reschedule calculation based on last updated time
 	return reconcile.Result{
 		RequeueAfter: retryInterval,
-		Requeue:      requeue,
 	}, issue
 }
 
