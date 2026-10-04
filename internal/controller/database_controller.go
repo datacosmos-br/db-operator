@@ -23,7 +23,9 @@ import (
 	"errors"
 	"maps"
 	"os"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -450,9 +452,12 @@ func (r *DatabaseReconciler) handleDbDelete(ctx context.Context, dbcr *kindav1be
 	// Run finalization logic for database. If the
 	// finalization logic fails, don't remove the finalizer so
 	// that we can retry during the next reconciliation.
-	if commonhelper.SliceContainsSubString(dbcr.Finalizers, "dbuser.") {
-		err := errors.New("database can't be removed, while there are DbUser referencing it")
+	referenced, err := r.releaseOrphanDbUserFinalizers(ctx, dbcr)
+	if err != nil {
 		return r.manageError(ctx, dbcr, err, true, phase)
+	}
+	if referenced {
+		return r.manageError(ctx, dbcr, errors.New("database can't be removed, while there are DbUser referencing it"), true, phase)
 	}
 
 	if commonhelper.ContainsString(dbcr.Finalizers, "db."+dbcr.Name) {
@@ -512,6 +517,36 @@ func (r *DatabaseReconciler) handleDbDelete(ctx context.Context, dbcr *kindav1be
 	}
 
 	return reconcileResult, nil
+}
+
+// releaseOrphanDbUserFinalizers removes every dbuser.<name> finalizer whose
+// DbUser no longer exists, since no DbUser reconcile will ever remove it, and
+// reports whether a finalizer of an existing DbUser still holds the Database.
+func (r *DatabaseReconciler) releaseOrphanDbUserFinalizers(ctx context.Context, dbcr *kindav1beta1.Database) (bool, error) {
+	referenced := false
+	released := false
+	for _, finalizer := range slices.Clone(dbcr.Finalizers) {
+		name, ok := strings.CutPrefix(finalizer, "dbuser.")
+		if !ok {
+			continue
+		}
+		err := r.Get(ctx, types.NamespacedName{Namespace: dbcr.Namespace, Name: name}, &kindav1beta1.DbUser{})
+		switch {
+		case err == nil:
+			referenced = true
+		case k8serrors.IsNotFound(err):
+			kci.RemoveFinalizer(&dbcr.ObjectMeta, finalizer)
+			released = true
+		default:
+			return false, err
+		}
+	}
+	if released {
+		if err := r.Update(ctx, dbcr); err != nil {
+			return false, err
+		}
+	}
+	return referenced, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -1133,14 +1168,12 @@ func (r *DatabaseReconciler) manageError(ctx context.Context, dbcr *kindav1beta1
 		log.Error(err, "unable to update status")
 		return reconcile.Result{
 			RequeueAfter: retryInterval,
-			Requeue:      requeue,
 		}, nil
 	}
 
 	// TODO: implementing reschedule calculation based on last updated time
 	return reconcile.Result{
 		RequeueAfter: retryInterval,
-		Requeue:      requeue,
 	}, nil
 }
 
