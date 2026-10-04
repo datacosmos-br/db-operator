@@ -174,6 +174,32 @@ func postgresDependentObjectsStillExist(err error) bool {
 	return false
 }
 
+// postgresInvalidSchemaName reports PostgreSQL 3F000 (invalid_schema_name).
+func postgresInvalidSchemaName(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "3F000"
+	}
+	return false
+}
+
+// grantOnSchema applies grantSQL. When that schema is absent, it creates the
+// requested schema and retries the same grant once.
+func (p Postgres) grantOnSchema(ctx context.Context, admin *DatabaseUser, schema, grantSQL string) error {
+	err := p.exec(ctx, p.Database, grantSQL, admin)
+	if err == nil {
+		return nil
+	}
+	if postgresInvalidSchemaName(err) {
+		createSchema := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", pq.QuoteIdentifier(schema))
+		if createErr := p.exec(ctx, p.Database, createSchema, admin); createErr != nil {
+			return createErr
+		}
+		return p.exec(ctx, p.Database, grantSQL, admin)
+	}
+	return err
+}
+
 func (p Postgres) execAsUser(ctx context.Context, query string, user *DatabaseUser) error {
 	log := log.FromContext(ctx)
 	ctx, cancel := context.WithTimeout(ctx, postgresQueryTimeout)
@@ -698,20 +724,20 @@ func (p Postgres) setUserPermission(ctx context.Context, admin *DatabaseUser, us
 	switch user.AccessType {
 	case ACCESS_TYPE_MAINUSER:
 		grant := fmt.Sprintf("GRANT ALL PRIVILEGES ON DATABASE \"%s\" TO \"%s\";", p.Database, user.Username)
-		err := p.executeExec(ctx, "postgres", grant, admin)
+		err := p.exec(ctx, "postgres", grant, admin)
 		if err != nil {
 			log.Error(err, "failed granting all privileges to user", "query", grant)
 			return err
 		}
 		grantCreateToAdmin := fmt.Sprintf("GRANT CREATE ON DATABASE \"%s\" to \"%s\";", p.Database, admin.Username)
-		if err := p.executeExec(ctx, p.Database, grantCreateToAdmin, admin); err != nil {
+		if err := p.exec(ctx, p.Database, grantCreateToAdmin, admin); err != nil {
 			log.Error(err, "failed to grant usage access on database", "username", user.Username, "database", p.Database)
 			return err
 		}
 
 		for _, s := range schemas {
 			grantUserAccess := fmt.Sprintf("GRANT ALL ON SCHEMA \"%s\" TO \"%s\"", s, user.Username)
-			if err := p.executeExec(ctx, p.Database, grantUserAccess, admin); err != nil {
+			if err := p.grantOnSchema(ctx, admin, s, grantUserAccess); err != nil {
 				log.Error(err, "failed to grant usage access on schema", "username", user.Username, "schema", s)
 				return err
 			}
